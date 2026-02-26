@@ -11,13 +11,17 @@ echo "                Setup                 "
 echo "======================================"
 
 # --- Security Authentication ---
-read -p "Enter the Authentication Key to continue: " user_key
-if [[ "$user_key" != "KEY_RITIK" ]]; then
-    echo "Given key is invalid or expaired. for more info contact us on discord."
-    exit 1
-fi
-echo "Authentication successful!"
-echo ""
+while true; do
+    read -p "Enter the Authentication Key to continue: " user_key
+    if [[ "$user_key" == "KEY_RITIK" ]]; then
+        echo "Authentication successful!"
+        echo ""
+        break
+    else
+        echo "Given key is invalid or expired. For more info contact us on discord."
+        echo ""
+    fi
+done
 
 # --- Dependency Installation ---
 echo "Checking and installing essential Termux packages (tsu, procps, etc.)..."
