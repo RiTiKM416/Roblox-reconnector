@@ -24,14 +24,14 @@ echo ""
 # --- Dependency Installation ---
 echo "Checking and installing essential Termux packages (tsu, procps, etc.)..."
 echo "This might take a moment on the first run..."
-pkg update -y > /dev/null 2>&1
-pkg install -y tsu procps coreutils ncurses-utils > /dev/null 2>&1
+pkg update -y
+pkg install -y tsu procps coreutils ncurses-utils
 echo "Essential packages successfully verified/installed."
 echo ""
 
 # --- Download Main Application ---
 echo "Downloading core GUI script..."
-curl -sL "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/gui_reconnector.sh" -o "$PREFIX/bin/roblox-reconnector"
+curl -# -L "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/gui_reconnector.sh" -o "$PREFIX/bin/roblox-reconnector"
 chmod +x "$PREFIX/bin/roblox-reconnector"
 
 echo ""
