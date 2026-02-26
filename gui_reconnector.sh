@@ -9,6 +9,7 @@ GAME_ID=""
 IS_RUNNING=0
 IS_PAUSED=0
 START_TIME=0
+LAST_LAUNCH_TIME=0
 ROBLOX_PKG="com.roblox.client"
 
 # --- Utility Functions ---
@@ -22,7 +23,7 @@ check_root() {
 }
 
 print_msg() {
-    printf "\r\033[K%s\n" "$1"
+    echo -e "\r\033[K$1"
 }
 
 update_logger() {
@@ -42,7 +43,7 @@ update_logger() {
         fi
         time_str="${time_str}${seconds} secs"
 
-        printf "\r\e[32mTime we are connected to game [ %s ]\e[0m" "$time_str"
+        printf "\r\e[32mTime we are connected to game [ %s ] | Current Game ID: \e[1;33m%s\e[0m" "$time_str" "$GAME_ID"
     fi
 }
 
@@ -80,6 +81,13 @@ is_roblox_disconnected_from_server() {
         return 0 # Roblox is fully closed, treat as disconnected
     fi
     
+    # Grace period: Wait 15 seconds after launch before assuming the game has crashed
+    # This gives Roblox time to actually establish the UDP connection to the server.
+    local current_time=$(date +%s)
+    if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 15 ]]; then
+        return 1 # Assume it's still loading safely
+    fi
+    
     # Check if there are any active UDP connections belonging to the Roblox PID
     # We use netstat -unp (UDP, Numeric IPs, Programs) and grep for the PID
     local udp_connections=$(su -c "netstat -unp 2>/dev/null | grep $pid/ | grep -v '0.0.0.0:*'")
@@ -115,6 +123,7 @@ launch_game() {
         print_msg "\e[32mSuccessfully connected to the game.\e[0m"
         IS_RUNNING=1
         START_TIME=$(date +%s)
+        LAST_LAUNCH_TIME=$(date +%s)
     else
         print_msg "\e[31mFailed to open Roblox. Retrying...\e[0m"
         IS_RUNNING=0
