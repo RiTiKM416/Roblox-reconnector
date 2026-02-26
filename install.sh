@@ -30,8 +30,8 @@ echo "Essential packages successfully verified/installed."
 echo ""
 
 # --- Download Main Application ---
-echo "Downloading core application script..."
-curl -sL "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/reconnector.sh" -o "$PREFIX/bin/roblox-reconnector"
+echo "Downloading core GUI script..."
+curl -sL "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/gui_reconnector.sh" -o "$PREFIX/bin/roblox-reconnector"
 chmod +x "$PREFIX/bin/roblox-reconnector"
 
 echo ""
@@ -39,5 +39,5 @@ echo "Installation complete!"
 echo "Starting the application..."
 echo ""
 
-# Execute the downloaded script natively without the pipe constraints
+# Execute the downloaded GUI directly without the pipe constraint
 exec "$PREFIX/bin/roblox-reconnector"
