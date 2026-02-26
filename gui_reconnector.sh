@@ -23,7 +23,7 @@ check_root() {
 }
 
 print_msg() {
-    echo -e "\r\033[K$1"
+    printf "\r\033[K%s\n" "$1"
 }
 
 update_logger() {
@@ -69,45 +69,44 @@ is_google_signin_focused() {
     fi
 }
 
-# Function to check if Roblox is disconnected from the game server (Game crashed, dropped to Main Menu)
-is_roblox_disconnected_from_server() {
-    # When Roblox is actively playing a 3D game, it maintains a constant UDP connection to the game server.
-    # When it is sitting on the Main Menu, it only uses standard TCP for web-api requests.
-    
-    # Get the PID of the Roblox app
+# Function to check if Roblox dropped back to the Main Menu (Game crashed, but app is open)
+is_roblox_in_main_menu() {
     local pid=$(su -c "pidof $ROBLOX_PKG" 2>/dev/null)
-    
     if [[ -z "$pid" ]]; then
-        return 0 # Roblox is fully closed, treat as disconnected
+        return 1 # If it's closed entirely, the running check will catch it
     fi
     
-    # Grace period: Wait 15 seconds after launch before assuming the game has crashed
-    # This gives Roblox time to actually establish the UDP connection to the server.
+    # Grace period: Wait 45 seconds after launch before assuming the game has crashed
+    # Roblox takes a long time to process the deep-link and load the 3D surface
     local current_time=$(date +%s)
-    if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 15 ]]; then
+    if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 45 ]]; then
         return 1 # Assume it's still loading safely
     fi
     
-    # Check if there are any active UDP connections belonging to the Roblox PID
-    # We use netstat -unp (UDP, Numeric IPs, Programs) and grep for the PID
-    local udp_connections=$(su -c "netstat -unp 2>/dev/null | grep $pid/ | grep -v '0.0.0.0:*'")
+    # Check if the focused window is the React Main Menu instead of a 3D Game Surface
+    local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
     
-    if [[ -z "$udp_connections" ]]; then
-        return 0 # True, no UDP connections found -> We are stuck on the main menu (crashed out)
+    # If the focus is explicitly the Roblox React Home/Menu UI, it means we dropped out of the game
+    if echo "$focused_window" | grep -qiE "com.roblox.client/(.*ActivityReact.*|.*MainActivity.*)"; then
+        return 0 # True, we are stuck on the main menu
     else
-        return 1 # False, active UDP traffic found -> We are actively in a game server
+        return 1 # False, we are presumably in-game
     fi
 }
 
 launch_game() {
+    print_msg "\e[33mEnsuring Roblox is closed before launch...\e[0m"
+    su -c "am force-stop $ROBLOX_PKG"
+    sleep 3
+
     print_msg "\e[36mRoblox is opening...\e[0m"
     su -c "am start -a android.intent.action.VIEW -d \"roblox://placeId=${GAME_ID}\" >/dev/null 2>&1"
     
-    sleep 2
+    sleep 4
     
     if is_roblox_running; then
         print_msg "\e[36mRoblox is opened.\e[0m"
-        print_msg "\e[33mWaiting to enter the game...\e[0m"
+        print_msg "\e[33mWaiting to enter the game (45s grace period)...\e[0m"
         sleep 3
         
         # Check if Google caught the intent and threw a sign-in wall
@@ -215,15 +214,13 @@ echo ""
 sleep 2
 
 # Initial launch
-print_msg "\e[33mEnsuring Roblox is closed before initial launch...\e[0m"
-su -c "am force-stop $ROBLOX_PKG"
-sleep 2
-
 launch_game
 
 # Main Monitoring Loop
+LOOP_COUNTER=0
 while true; do
     read -t 1 user_input
+    LOOP_COUNTER=$((LOOP_COUNTER + 1))
     
     if [[ "${user_input,,}" == "stop" ]]; then
         echo ""
@@ -248,49 +245,51 @@ while true; do
     fi
 
     if [[ $IS_PAUSED -eq 0 ]]; then
-        if is_roblox_running; then
-            if [[ $IS_RUNNING -eq 0 ]]; then
-                IS_RUNNING=1
-                START_TIME=$(date +%s)
-                print_msg "\e[32mSuccessfully connected to the game.\e[0m"
-            fi
-            update_logger
-        else
-            if [[ $IS_RUNNING -eq 1 ]]; then
-                echo ""
-                print_msg "\e[31mGame disconnected or closed. Reconnecting...\e[0m"
-                IS_RUNNING=0
-            fi
-            launch_game
-        fi
+        # Update timer display every second
+        update_logger
         
-        # Check if the game crashed but the Roblox app remained open (stuck on Main Menu)
-        if [[ $IS_RUNNING -eq 1 ]]; then
-            # We only check this every few loops to save CPU, but for simplicity we'll check it here
-            if is_roblox_disconnected_from_server; then
-                echo ""
-                print_msg "\e[31m[!] Roblox dropped to the Main Menu (Game Crash detected).\e[0m"
-                print_msg "\e[33mForce-closing Roblox and reconnecting...\e[0m"
-                
-                # Force kill the stalled app
-                su -c "am force-stop $ROBLOX_PKG"
-                sleep 2
-                
-                # Reset state so the loop restarts it cleanly
-                IS_RUNNING=0
+        # Every 5 seconds, poll process and root checks (prevents Termux crashing from overload)
+        if (( LOOP_COUNTER % 5 == 0 )); then
+            if is_roblox_running; then
+                if [[ $IS_RUNNING -eq 0 ]]; then
+                    IS_RUNNING=1
+                    START_TIME=$(date +%s)
+                    LAST_LAUNCH_TIME=$(date +%s)
+                    print_msg "\e[32mSuccessfully connected to the game.\e[0m"
+                fi
+            else
+                if [[ $IS_RUNNING -eq 1 ]]; then
+                    echo ""
+                    print_msg "\e[31mGame disconnected or closed. Reconnecting...\e[0m"
+                    IS_RUNNING=0
+                fi
                 launch_game
                 continue
             fi
-        fi
-        
-        # Continuous background check for Google Sign-in popups while running
-        if [[ $IS_RUNNING -eq 1 ]]; then
-            if is_google_signin_focused; then
-                echo ""
-                print_msg "\e[35m[!] Google window has been detected during gameplay.\e[0m"
-                print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
-                su -c "input keyevent 4"
+            
+            # Check if the game crashed but the Roblox app remained open (stuck on Main Menu)
+            if [[ $IS_RUNNING -eq 1 ]]; then
+                if is_roblox_in_main_menu; then
+                    echo ""
+                    print_msg "\e[31m[!] Roblox dropped to the Main Menu (Game Crash detected).\e[0m"
+                    print_msg "\e[33mReconnecting to Game...\e[0m"
+                    
+                    IS_RUNNING=0
+                    launch_game
+                    continue
+                fi
             fi
-        fi
+            
+            # Continuous background check for Google Sign-in popups
+            if [[ $IS_RUNNING -eq 1 ]]; then
+                if is_google_signin_focused; then
+                    echo ""
+                    print_msg "\e[35m[!] Google window has been detected.\e[0m"
+                    print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
+                    su -c "input keyevent 4"
+                fi
+            fi
+            
+        fi # End 5-second interval wrapper
     fi
 done
