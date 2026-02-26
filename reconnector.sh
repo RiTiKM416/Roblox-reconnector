@@ -13,7 +13,7 @@ ROBLOX_PKG="com.roblox.client"
 # --- Security & Setup Functions ---
 
 authenticate() {
-    read -p "Enter the Authentication Key to continue: " user_key </dev/tty
+    read -p "Enter the Authentication Key to continue: " user_key
     if [[ "$user_key" != "KEY_RITIK" ]]; then
         echo "Given key is invalid or expaired. for more info contact us on discord."
         exit 1
@@ -116,7 +116,7 @@ install_dependencies
 check_root
 
 # Prompt user for Game ID
-read -p "Enter the Roblox Game ID (e.g., 95878078212429): " GAME_ID </dev/tty
+read -p "Enter the Roblox Game ID (e.g., 95878078212429): " GAME_ID
 if [[ -z "$GAME_ID" ]]; then
     echo "Game ID cannot be empty. Exiting."
     exit 1
@@ -133,7 +133,7 @@ launch_game
 # Main Monitoring Loop
 while true; do
     # 1. Handle user input dynamically without blocking the loop
-    read -t 1 user_input </dev/tty
+    read -t 1 user_input
     
     # Process user input
     if [[ "${user_input,,}" == "stop" ]]; then  # ,, converts to lowercase in bash 4+
@@ -142,7 +142,7 @@ while true; do
         IS_PAUSED=1
         
         while [[ $IS_PAUSED -eq 1 ]]; do
-            read -p "Type 'Resume' to continue or 'Exit' to quit: " pause_input </dev/tty
+            read -p "Type 'Resume' to continue or 'Exit' to quit: " pause_input
             if [[ "${pause_input,,}" == "resume" ]]; then
                 print_msg "Resuming auto-reconnector..."
                 IS_PAUSED=0
