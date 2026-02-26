@@ -29,7 +29,18 @@ echo ""
 
 # --- Download Main Application ---
 echo "Downloading core GUI script..."
-curl -# -L "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/gui_reconnector.sh" -o "$PREFIX/bin/roblox-reconnector"
+curl -sL "https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/gui_reconnector.sh" -o "$PREFIX/bin/roblox-reconnector" &
+CURL_PID=$!
+
+spin='-\|/'
+i=0
+while kill -0 $CURL_PID 2>/dev/null; do
+    i=$(( (i+1) %4 ))
+    printf "\r\e[36m[${spin:$i:1}] Downloading...\e[0m"
+    sleep 0.1
+done
+
+printf "\r\e[32m[✓] Download complete!       \e[0m\n"
 chmod +x "$PREFIX/bin/roblox-reconnector"
 
 echo ""
