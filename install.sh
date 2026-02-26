@@ -3,9 +3,7 @@
 # Termux Auto-Reconnector Bootstrapper
 # This script is designed to be run via: curl | bash
 
-# When piped to bash, standard input is consumed by the pipe. 
-# We explicitly force 'read' to take input directly from the user's terminal (/dev/tty).
-exec < /dev/tty
+# This script is designed to be downloaded and run locally.
 
 echo "======================================"
 echo "    Roblox Termux Auto-Reconnector    "

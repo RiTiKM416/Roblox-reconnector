@@ -6,7 +6,7 @@ This script connects Rooted Android emulators directly to a specific Roblox Game
 Open **Termux** on your device and paste this single command to download and run it instantly:
 
 ```bash
-curl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh | bash
+curl -O https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh && bash install.sh
 ```
 
 **Features:**
