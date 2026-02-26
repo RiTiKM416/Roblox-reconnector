@@ -10,6 +10,27 @@ IS_PAUSED=0
 START_TIME=0
 ROBLOX_PKG="com.roblox.client"
 
+# --- Security & Setup Functions ---
+
+authenticate() {
+    read -p "Enter the Authentication Key to continue: " user_key
+    if [[ "$user_key" != "KEY_RITIK" ]]; then
+        echo "Given key is invalid or expaired. for more info contact us on discord."
+        exit 1
+    fi
+    echo "Authentication successful!"
+    echo ""
+}
+
+install_dependencies() {
+    echo "Checking and installing essential Termux packages (tsu, procps, etc.)..."
+    echo "This might take a moment on the first run..."
+    pkg update -y > /dev/null 2>&1
+    pkg install -y tsu procps coreutils ncurses-utils > /dev/null 2>&1
+    echo "Essential packages successfully verified/installed."
+    echo ""
+}
+
 # --- Utility Functions ---
 
 # Function to check if root is available
@@ -88,6 +109,9 @@ launch_game() {
 echo "======================================"
 echo "    Roblox Termux Auto-Reconnector    "
 echo "======================================"
+
+authenticate
+install_dependencies
 
 check_root
 
