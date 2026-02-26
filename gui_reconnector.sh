@@ -197,6 +197,10 @@ echo ""
 sleep 2
 
 # Initial launch
+print_msg "\e[33mEnsuring Roblox is closed before initial launch...\e[0m"
+su -c "am force-stop $ROBLOX_PKG"
+sleep 2
+
 launch_game
 
 # Main Monitoring Loop
