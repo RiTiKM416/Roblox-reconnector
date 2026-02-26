@@ -68,6 +68,20 @@ is_google_signin_focused() {
     fi
 }
 
+# Function to check if Roblox dropped back to the Main Menu (Game crashed, but app is open)
+is_roblox_in_main_menu() {
+    # When Roblox is on the home screen/main menu, the focused activity is usually ActivityReact or MainActivity.
+    # When actually inside a 3D game, the surface focus changes.
+    local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
+    
+    # If the focus is explicitly the Roblox React Home/Menu UI, it means we are not in a game.
+    if echo "$focused_window" | grep -qiE "com.roblox.client/(.*ActivityReact.*|.*MainActivity.*)"; then
+        return 0 # True, we are stuck on the main menu
+    else
+        return 1 # False, we are presumably in-game
+    fi
+}
+
 launch_game() {
     print_msg "\e[36mRoblox is opening...\e[0m"
     su -c "am start -a android.intent.action.VIEW -d \"roblox://placeId=${GAME_ID}\" >/dev/null 2>&1"
@@ -226,6 +240,25 @@ while true; do
                 IS_RUNNING=0
             fi
             launch_game
+        fi
+        
+        # Check if the game crashed but the Roblox app remained open (stuck on Main Menu)
+        if [[ $IS_RUNNING -eq 1 ]]; then
+            # We only check this every few loops to save CPU, but for simplicity we'll check it here
+            if is_roblox_in_main_menu; then
+                echo ""
+                print_msg "\e[31m[!] Roblox dropped to the Main Menu (Game Crash detected).\e[0m"
+                print_msg "\e[33mForce-closing Roblox and reconnecting...\e[0m"
+                
+                # Force kill the stalled app
+                su -c "am force-stop $ROBLOX_PKG"
+                sleep 2
+                
+                # Reset state so the loop restarts it cleanly
+                IS_RUNNING=0
+                launch_game
+                continue
+            fi
         fi
         
         # Continuous background check for Google Sign-in popups while running
