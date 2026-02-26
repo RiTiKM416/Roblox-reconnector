@@ -228,7 +228,7 @@ while true; do
         IS_PAUSED=1
         
         while [[ $IS_PAUSED -eq 1 ]]; do
-            read -p "Type 'Resume' to continue or 'Exit' to quit: " pause_input
+            read -p "Type 'Resume' to continue, 'Menu' for main screen, or 'Exit' to quit: " pause_input
             if [[ "${pause_input,,}" == "resume" ]]; then
                 print_msg "\e[33mResuming auto-reconnector...\e[0m"
                 IS_PAUSED=0
@@ -237,6 +237,25 @@ while true; do
                 else
                     launch_game
                 fi
+            elif [[ "${pause_input,,}" == "menu" ]]; then
+                print_msg "\e[36mReturning to Main Menu...\e[0m"
+                IS_PAUSED=0
+                IS_RUNNING=0
+                
+                show_menu
+                
+                # Redraw the monitor UI after returning from the menu
+                clear
+                echo -e "\e[1;34m======================================\e[0m"
+                echo -e "\e[1;37m        Monitor is Running...         \e[0m"
+                echo -e "\e[1;34m======================================\e[0m"
+                echo -e "Game ID locked: \e[1;33m$GAME_ID\e[0m"
+                echo -e "Type \e[1;31mStop\e[0m at any time to pause."
+                echo ""
+                sleep 2
+                
+                launch_game
+                break
             elif [[ "${pause_input,,}" == "exit" ]]; then
                 print_msg "\e[36mExiting Roblox Auto-Reconnector.\e[0m"
                 exit 0
