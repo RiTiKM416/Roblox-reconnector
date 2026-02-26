@@ -55,6 +55,19 @@ is_roblox_running() {
     fi
 }
 
+# Function to check if the Google Sign-in window has stolen focus
+is_google_signin_focused() {
+    # We check the currently focused window using dumpsys
+    local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
+    
+    # If the focused window belongs to Google Play Services (gms) or an account picker, return 0 (true)
+    if echo "$focused_window" | grep -qiE "com.google.android.gms|accounts.AccountChecker|SignInActivity"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 launch_game() {
     print_msg "\e[36mRoblox is opening...\e[0m"
     su -c "am start -a android.intent.action.VIEW -d \"roblox://placeId=${GAME_ID}\" >/dev/null 2>&1"
@@ -64,7 +77,18 @@ launch_game() {
     if is_roblox_running; then
         print_msg "\e[36mRoblox is opened.\e[0m"
         print_msg "\e[33mWaiting to enter the game...\e[0m"
-        sleep 5
+        sleep 3
+        
+        # Check if Google caught the intent and threw a sign-in wall
+        if is_google_signin_focused; then
+            echo ""
+            print_msg "\e[35m[!] Google window has been detected.\e[0m"
+            print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
+            # Simulate pressing the Android 'Back' button to close the popup
+            su -c "input keyevent 4"
+            sleep 2
+        fi
+        
         print_msg "\e[32mSuccessfully connected to the game.\e[0m"
         IS_RUNNING=1
         START_TIME=$(date +%s)
@@ -202,6 +226,16 @@ while true; do
                 IS_RUNNING=0
             fi
             launch_game
+        fi
+        
+        # Continuous background check for Google Sign-in popups while running
+        if [[ $IS_RUNNING -eq 1 ]]; then
+            if is_google_signin_focused; then
+                echo ""
+                print_msg "\e[35m[!] Google window has been detected during gameplay.\e[0m"
+                print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
+                su -c "input keyevent 4"
+            fi
         fi
     fi
 done
