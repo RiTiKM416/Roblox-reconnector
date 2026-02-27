@@ -264,6 +264,68 @@
             font-weight: 500;
         }
 
+        .nav-tabs {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            width: 100%;
+        }
+
+        .nav-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 0.5rem 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            color: var(--primary-blue);
+        }
+
+        .nav-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1rem;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: var(--primary-blue);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .notify-success {
             background: rgba(34, 197, 94, 0.1);
             border: 1px solid rgba(34, 197, 94, 0.3);
@@ -292,158 +354,200 @@
             <p>Discord Bot & HWID Session Manager</p>
         </div>
 
+        <nav class="nav-tabs">
+            <button class="nav-btn active" data-tab="main-page">Main Page</button>
+            <button class="nav-btn" data-tab="key-page">Key Log Page</button>
+            <button class="nav-btn" data-tab="manage-bot">Manage Bot</button>
+            <button class="nav-btn" data-tab="manage-message">Manage Message</button>
+        </nav>
+
         <% if (typeof alert !=='undefined' && alert) { %>
             <div class="notification <%= alert.type === 'success' ? 'notify-success' : 'notify-error' %>">
                 <%= alert.message %>
             </div>
             <% } %>
 
-                <div class="stats-grid">
-                    <div class="card">
-                        <h3>Bot Status</h3>
-                        <p class="value">
-                            <span class="status-dot <%= state.botOnline ? 'online' : 'offline' %>"></span>
-                            <%= state.botOnline ? 'Online' : 'Offline' %>
-                        </p>
+                <div id="main-page" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="card">
+                            <h3>Bot Status</h3>
+                            <p class="value">
+                                <span class="status-dot <%= state.botOnline ? 'online' : 'offline' %>"></span>
+                                <%= state.botOnline ? 'Online' : 'Offline' %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Active Keys Generated</h3>
+                            <p class="value">
+                                <%= state.totalKeysGenerated %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Discord Connected</h3>
+                            <p class="value">
+                                <%= userTag %>
+                            </p>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h3>Active Keys Generated</h3>
-                        <p class="value">
-                            <%= state.totalKeysGenerated %>
-                        </p>
-                    </div>
-                    <div class="card">
-                        <h3>Discord Connected</h3>
-                        <p class="value">
-                            <%= userTag %>
-                        </p>
+
+                    <div class="controls">
+                        <form action="/api/bot/toggle" method="POST">
+                            <% if (state.botOnline) { %>
+                                <button type="submit" class="btn stop">Shut Down Bot</button>
+                                <% } else { %>
+                                    <button type="submit" class="btn">Start Discord Bot</button>
+                                    <% } %>
+                        </form>
+                        <button class="btn" onclick="location.reload()">Refresh Data</button>
                     </div>
                 </div>
 
-                <div class="controls">
-                    <form action="/api/bot/toggle" method="POST">
-                        <% if (state.botOnline) { %>
-                            <button type="submit" class="btn stop">Shut Down Bot</button>
+                <div id="key-page" class="tab-content">
+                    <div class="logs">
+                        <h2>Recent Hardware Key Generations</h2>
+                        <% if (state.recentKeys.length===0) { %>
+                            <p style="text-align:center; color:#94a3b8;">No keys generated yet.</p>
                             <% } else { %>
-                                <button type="submit" class="btn">Start Discord Bot</button>
-                                <% } %>
-                    </form>
-                    <button class="btn" onclick="location.reload()">Refresh Data</button>
-                </div>
-
-                <div class="logs">
-                    <h2>Recent Hardware Key Generations</h2>
-                    <% if (state.recentKeys.length===0) { %>
-                        <p style="text-align:center; color:#94a3b8;">No keys generated yet.</p>
-                        <% } else { %>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Discord Account</th>
-                                        <th>Platorelay Secure Link</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% state.recentKeys.forEach(function(log) { %>
+                                <table>
+                                    <thead>
                                         <tr>
-                                            <td>
-                                                <%= log.time %>
-                                            </td>
-                                            <td><strong>
-                                                    <%= log.discordId %>
-                                                </strong></td>
-                                            <td><a href="<%= log.link %>" target="_blank" class="link">View Generation
-                                                    Link</a></td>
+                                            <th>Time</th>
+                                            <th>Discord Account</th>
+                                            <th>Platorelay Secure Link</th>
                                         </tr>
-                                        <% }); %>
-                                </tbody>
-                            </table>
-                            <% } %>
+                                    </thead>
+                                    <tbody>
+                                        <% state.recentKeys.forEach(function(log) { %>
+                                            <tr>
+                                                <td>
+                                                    <%= log.time %>
+                                                </td>
+                                                <td><strong>
+                                                        <%= log.discordId %>
+                                                    </strong></td>
+                                                <td><a href="<%= log.link %>" target="_blank" class="link">View
+                                                        Generation
+                                                        Link</a></td>
+                                            </tr>
+                                            <% }); %>
+                                    </tbody>
+                                </table>
+                                <% } %>
+                    </div>
                 </div>
 
-                <div class="admin-section">
-                    <h2>Advanced Key Management</h2>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <h4>Generate Instant Key</h4>
-                            <p>Bypass Discord and get a direct Platorelay link.</p>
-                            <form action="/api/admin/create-key" method="POST"
-                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
-                                <button type="submit" class="btn btn-small">Generate Link</button>
-                            </form>
-                        </div>
+                <div id="manage-bot" class="tab-content">
+                    <div class="admin-section">
+                        <h2>Advanced Key Management</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <h4>Generate Instant Key</h4>
+                                <p>Bypass Discord and get a direct Platorelay link.</p>
+                                <form action="/api/admin/create-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                    <button type="submit" class="btn btn-small">Generate Link</button>
+                                </form>
+                            </div>
 
-                        <div class="form-group">
-                            <h4>Delete / Blacklist Key</h4>
-                            <p>Permanently invalidate a specific key.</p>
-                            <form action="/api/admin/delete-key" method="POST"
-                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
-                                <input type="text" name="key" placeholder="Enter Platoboost Key" required>
-                                <button type="submit" class="btn btn-small stop">Delete Key</button>
-                            </form>
-                        </div>
+                            <div class="form-group">
+                                <h4>Delete / Blacklist Key</h4>
+                                <p>Permanently invalidate a specific key.</p>
+                                <form action="/api/admin/delete-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                    <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                    <button type="submit" class="btn btn-small stop">Delete Key</button>
+                                </form>
+                            </div>
 
-                        <div class="form-group">
-                            <h4>Forcible HWID Reset</h4>
-                            <p>Unbind a key from a user's device if they can't use Discord.</p>
-                            <form action="/api/admin/reset-hwid" method="POST"
-                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
-                                <input type="text" name="key" placeholder="Enter Platoboost Key" required>
-                                <button type="submit" class="btn btn-small">Reset Binding</button>
-                            </form>
+                            <div class="form-group">
+                                <h4>Forcible HWID Reset</h4>
+                                <p>Unbind a key from a user's device if they can't use Discord.</p>
+                                <form action="/api/admin/reset-hwid" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                    <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                    <button type="submit" class="btn btn-small">Reset Binding</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="admin-section">
-                    <h2>Bot Appearance Manager</h2>
-                    <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">Customize the Discord UI sent when you
-                        type <code>/setup</code>. Save to instantly update the bot.</p>
+                <div id="manage-message" class="tab-content">
+                    <div class="admin-section">
+                        <h2>Bot Appearance Manager</h2>
+                        <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">Customize the Discord UI sent when you
+                            type <code>/setup</code>. Save to instantly update the bot.</p>
 
-                    <form action="/api/admin/update-embed" method="POST"
-                        style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
-                        <div class="form-group" style="background:transparent; border:none; padding:0;">
-                            <h4>Embed Title</h4>
-                            <input type="text" name="title"
-                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.title : 'Termux Reconnector Authentication' %>"
-                                placeholder="E.g., Termux Reconnector Authentication">
-                        </div>
+                        <form action="/api/admin/update-embed" method="POST"
+                            style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Embed Title</h4>
+                                <input type="text" name="title"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.title : 'Termux Reconnector Authentication' %>"
+                                    placeholder="E.g., Termux Reconnector Authentication">
+                            </div>
 
-                        <div class="form-group" style="background:transparent; border:none; padding:0;">
-                            <h4>Embed Description</h4>
-                            <input type="text" name="description"
-                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.description : 'Click one of the buttons below to interact with the Free Key System.' %>"
-                                placeholder="E.g., Click below to get your key.">
-                        </div>
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Embed Description</h4>
+                                <input type="text" name="description"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.description : 'Click one of the buttons below to interact with the Free Key System.' %>"
+                                    placeholder="E.g., Click below to get your key.">
+                            </div>
 
-                        <div class="form-group" style="background:transparent; border:none; padding:0;">
-                            <h4>Hex Color Code</h4>
-                            <input type="text" name="color"
-                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.color : '#38bdf8' %>"
-                                placeholder="#38bdf8">
-                        </div>
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Hex Color Code</h4>
+                                <input type="text" name="color"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.color : '#38bdf8' %>"
+                                    placeholder="#38bdf8">
+                            </div>
 
-                        <div class="form-group" style="background:transparent; border:none; padding:0;">
-                            <h4>Large Banner Image URL (Optional)</h4>
-                            <input type="url" name="image"
-                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.image : '' %>"
-                                placeholder="https://imgur.com/your-image.png">
-                        </div>
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Large Banner Image URL (Optional)</h4>
+                                <input type="url" name="image"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.image : '' %>"
+                                    placeholder="https://imgur.com/your-image.png">
+                            </div>
 
-                        <div class="form-group" style="background:transparent; border:none; padding:0;">
-                            <h4>Small Thumbnail URL (Optional)</h4>
-                            <input type="url" name="thumbnail"
-                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.thumbnail : '' %>"
-                                placeholder="https://imgur.com/your-logo.png">
-                        </div>
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Small Thumbnail URL (Optional)</h4>
+                                <input type="url" name="thumbnail"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.thumbnail : '' %>"
+                                    placeholder="https://imgur.com/your-logo.png">
+                            </div>
 
-                        <button type="submit" class="btn" style="align-self: flex-start; margin-top: 0.5rem;">Save
-                            Appearance Setup</button>
-                    </form>
+                            <button type="submit" class="btn" style="align-self: flex-start; margin-top: 0.5rem;">Save
+                                Appearance Setup</button>
+                        </form>
+                    </div>
                 </div>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.nav-btn');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    contents.forEach(c => c.classList.remove('active'));
+
+                    // Add active class to clicked tab
+                    tab.classList.add('active');
+
+                    // Show corresponding content
+                    const targetId = tab.getAttribute('data-tab');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+
+            // Keep the user on the correct tab after a form submission by detecting alerts in URL
+            // Default to 'manage-message' if they just saved an embed shape, otherwise default 'main-page'
+            // We just use a simple default to the first active tab logic unless explicitly tracked. 
+            // In a small SPA, clicking works perfectly.
+        });
+    </script>
 </body>
 
 </html>
