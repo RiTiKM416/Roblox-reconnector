@@ -6,14 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termux Reconnector Admin</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+
+        :root {
+            --bg-body: #11141b;
+            --bg-card: #1e2330;
+            --bg-input: #12151e;
+            --border-color: #2b3245;
+            --text-main: #ffffff;
+            --text-muted: #8c90a1;
+            --primary-blue: #4f73ef;
+            --primary-hover: #405ec9;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --card-radius: 8px;
+            --input-radius: 6px;
+        }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+            background-color: var(--bg-body);
+            color: var(--text-main);
             margin: 0;
-            padding: 2rem;
+            padding: 3rem 1rem;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -21,141 +36,146 @@
 
         .container {
             width: 100%;
-            max-width: 900px;
+            max-width: 950px;
         }
 
         .header {
-            text-align: center;
             margin-bottom: 2rem;
+            text-align: left;
         }
 
         h1 {
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 800;
-            background: linear-gradient(to right, #38bdf8, #818cf8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-main);
+            margin: 0 0 0.5rem 0;
+        }
+
+        .header p {
+            color: var(--text-muted);
             margin: 0;
+            font-size: 1rem;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
 
         .card {
-            background-color: #1e293b;
-            border-radius: 12px;
+            background-color: var(--bg-card);
+            border-radius: var(--card-radius);
             padding: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            border: 1px solid #334155;
-            text-align: center;
-            transition: transform 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .card h3 {
-            margin: 0 0 0.5rem 0;
-            color: #94a3b8;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.875rem;
-            letter-spacing: 0.05em;
+            margin: 0 0 0.75rem 0;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.9rem;
         }
 
         .card .value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: #f8fafc;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
             margin: 0;
+            display: flex;
+            align-items: center;
         }
 
         .status-dot {
             display: inline-block;
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 12px;
         }
 
         .online {
-            background-color: #22c55e;
-            box-shadow: 0 0 10px #22c55e;
+            background-color: var(--success);
         }
 
         .offline {
-            background-color: #ef4444;
-            box-shadow: 0 0 10px #ef4444;
+            background-color: var(--danger);
         }
 
         .btn {
-            background: linear-gradient(135deg, #6366f1, #3b82f6);
+            background-color: var(--primary-blue);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--input-radius);
+            font-weight: 700;
+            font-size: 0.9rem;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
         }
 
         .btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 8px -1px rgba(99, 102, 241, 0.6);
+            background-color: var(--primary-hover);
         }
 
         .btn.stop {
-            background: linear-gradient(135deg, #ef4444, #b91c1c);
-            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);
+            background-color: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
         }
 
         .btn.stop:hover {
-            box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.6);
+            background-color: var(--danger);
+            color: #fff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
         }
 
         .logs {
-            background-color: #1e293b;
-            border-radius: 12px;
+            background-color: var(--bg-card);
+            border-radius: var(--card-radius);
             padding: 1.5rem;
-            border: 1px solid #334155;
+            border: 1px solid var(--border-color);
             margin-top: 2rem;
+            overflow-x: auto;
         }
 
-        .logs h2 {
+        .logs h2,
+        .admin-section h2 {
             margin-top: 0;
-            color: #38bdf8;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 0.5rem;
+            color: var(--primary-blue);
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
+            margin-top: 1rem;
         }
 
         th,
         td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #334155;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            color: #94a3b8;
+            color: var(--text-muted);
             font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
+            font-size: 0.85rem;
         }
 
         tr:last-child td {
@@ -163,8 +183,9 @@
         }
 
         a.link {
-            color: #38bdf8;
+            color: var(--primary-blue);
             text-decoration: none;
+            font-weight: 500;
         }
 
         a.link:hover {
@@ -172,84 +193,93 @@
         }
 
         .admin-section {
-            background-color: #1e293b;
-            border-radius: 12px;
-            padding: 1.5rem;
-            border: 1px solid #334155;
+            background-color: var(--bg-card);
+            border-radius: var(--card-radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
             margin-top: 2rem;
         }
 
-        .admin-section h2 {
-            margin-top: 0;
-            color: #818cf8;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 0.5rem;
+        .admin-section>p {
+            color: var(--text-muted);
+            margin-top: -0.5rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
         }
 
         .form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 1.5rem;
-            margin-top: 1rem;
         }
 
         .form-group {
-            background: #0f172a;
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #334155;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
+            margin-bottom: 1rem;
         }
 
         .form-group h4 {
             margin: 0;
-            color: #f8fafc;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 700;
         }
 
         .form-group p {
             margin: 0;
-            font-size: 0.8rem;
-            color: #94a3b8;
+            font-size: 0.85rem;
+            color: var(--text-muted);
         }
 
         .form-group input {
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: 1px solid #334155;
-            background: #1e293b;
-            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: var(--input-radius);
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-input);
+            color: var(--text-main);
             outline: none;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
         }
 
         .form-group input:focus {
-            border-color: #38bdf8;
+            border-color: var(--primary-blue);
+        }
+
+        .form-group input::placeholder {
+            color: #4a5468;
         }
 
         .btn-small {
-            padding: 0.5rem 1rem;
-            font-size: 0.875rem;
-            border-radius: 4px;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
         }
 
         .notification {
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 8px;
-            text-align: center;
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: var(--input-radius);
+            font-weight: 500;
         }
 
         .notify-success {
-            background: rgba(34, 197, 94, 0.2);
-            border: 1px solid #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
             color: #4ade80;
         }
 
         .notify-error {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             color: #f87171;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 2rem 0;
         }
     </style>
 </head>
