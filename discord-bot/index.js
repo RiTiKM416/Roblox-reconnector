@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const express = require('express');
 const auth = require('basic-auth');
 
@@ -151,6 +151,10 @@ const commands = [
         description: 'Generates a unique Platoboost Link to get a 24-hr access key.',
     },
     {
+        name: 'setup',
+        description: 'Admin Only: Spawns the interactive Auth menu.',
+    },
+    {
         name: 'reset',
         description: 'Resets the Hardware ID binding on your active key so you can use it on a new device.',
         options: [
@@ -176,108 +180,149 @@ client.once('ready', async () => {
     }
 });
 
+// --- Interaction Handlers ---
+async function handleGetKey(interaction) {
+    const userId = interaction.user.id;
+    await interaction.deferReply({ ephemeral: true });
+
+    // Check Anti-Spam Cache
+    const now = Date.now();
+    if (activeLinks.has(userId)) {
+        const cachedData = activeLinks.get(userId);
+        if (now < cachedData.expiresAt) {
+            // Determine minutes left
+            const minutesLeft = Math.ceil((cachedData.expiresAt - now) / 60000);
+            return await interaction.editReply({
+                content: `⚠️ **Anti-Spam Protection**\nYou already requested a key. Please complete your active link first!\n*(If you lost the page, you can generate a brand new link in ${minutesLeft} minutes).*\n\n👉 **${cachedData.link}**`,
+                ephemeral: true
+            });
+        } else {
+            activeLinks.delete(userId);
+        }
+    }
+
+    try {
+        const response = await fetch('https://api.platoboost.net/public/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                service: parseInt(PLATOBOOST_PROJECT),
+                identifier: userId
+            }),
+        });
+        const decoded = await response.json();
+        if (decoded.success) {
+            const link = decoded.data.url;
+            // Add to Anti-Spam Memory Cache (1 Hour Expiration)
+            activeLinks.set(userId, { link: link, expiresAt: now + (60 * 60 * 1000) });
+            // Save to Dashboard State
+            appState.totalKeysGenerated++;
+            appState.recentKeys.unshift({ discordId: interaction.user.tag, time: new Date().toLocaleTimeString(), link: link });
+            if (appState.recentKeys.length > 20) appState.recentKeys.pop();
+
+            await interaction.editReply({
+                content: `Here is your unique Platoboost Link!\n\n👉 **${link}**\n\nWhen you complete the link, enter the generated string into your Termux Script! It will permanently lock to that specific device.`,
+                ephemeral: true
+            });
+        } else {
+            throw new Error("API rejected request: " + decoded.message);
+        }
+    } catch (error) {
+        console.error('Error generating link:', error);
+        await interaction.editReply({ content: `Error communicating with Platoboost. Try again later.`, ephemeral: true });
+    }
+}
+
+async function handleReset(interaction, key) {
+    const userId = interaction.user.id;
+    await interaction.deferReply({ ephemeral: true });
+    try {
+        const response = await fetch(`https://api.platoboost.net/public/reset/${PLATOBOOST_PROJECT}?key=${key}&identifier=${userId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const decoded = await response.json();
+        if (decoded.success) {
+            // Clear the anti-spam cache so they can immediately generate a new key
+            activeLinks.delete(userId);
+            await interaction.editReply({
+                content: `✅ Successfully Reset Hardware ID binding for \`${key}\`!\n\nYou can now use this key on a new phone, or generate a brand new key.`,
+                ephemeral: true
+            });
+        } else {
+            await interaction.editReply({
+                content: `❌ Failed to reset key: ${decoded.message}\n(Make sure the key is correct and you were the one who generated it!).`,
+                ephemeral: true
+            });
+        }
+    } catch (error) {
+        await interaction.editReply({ content: `Error communicating with Platoboost. Try again later.`, ephemeral: true });
+    }
+}
+
+// --- Interaction Router ---
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
-
-    if (interaction.commandName === 'getkey') {
-        const userId = interaction.user.id;
-        await interaction.deferReply({ ephemeral: true });
-
-        // Check Anti-Spam Cache
-        const now = Date.now();
-        if (activeLinks.has(userId)) {
-            const cachedData = activeLinks.get(userId);
-            if (now < cachedData.expiresAt) {
-                // Determine minutes left
-                const minutesLeft = Math.ceil((cachedData.expiresAt - now) / 60000);
-                return await interaction.editReply({
-                    content: `⚠️ **Anti-Spam Protection**\nYou already requested a key. Please complete your active link first!\n*(If you lost the page, you can generate a brand new link in ${minutesLeft} minutes).*\n\n👉 **${cachedData.link}**`,
-                    ephemeral: true
-                });
-            } else {
-                // Link is expired in cache, remove it so they can generate a new one.
-                activeLinks.delete(userId);
+    // 1. Slash Commands
+    if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'getkey') {
+            await handleGetKey(interaction);
+        } else if (interaction.commandName === 'reset') {
+            await handleReset(interaction, interaction.options.getString('key'));
+        } else if (interaction.commandName === 'setup') {
+            if (!interaction.memberPermissions || !interaction.memberPermissions.has('Administrator')) {
+                return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
             }
+
+            const embed = new EmbedBuilder()
+                .setTitle('Termux Reconnector Authentication')
+                .setDescription('Click one of the buttons below to interact with the Free Key System.')
+                .setColor(0x38bdf8)
+                .addFields(
+                    { name: '🔑 Get Key', value: 'Generate a new 24hr access key tied to this Discord account.' },
+                    { name: '🗑️ Reset HWID', value: 'Reset the hardware binding of an active key if you changed phones.' },
+                    { name: '📜 Get Script', value: 'Get the 1-line installation script to run in Termux.' }
+                );
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('btn_getkey').setLabel('Get Key').setStyle(ButtonStyle.Success).setEmoji('🔑'),
+                new ButtonBuilder().setCustomId('btn_reset').setLabel('Reset HWID').setStyle(ButtonStyle.Danger).setEmoji('🗑️'),
+                new ButtonBuilder().setCustomId('btn_script').setLabel('Get Script').setStyle(ButtonStyle.Secondary).setEmoji('📜')
+            );
+
+            await interaction.reply({ components: [row], embeds: [embed] });
         }
-
-        try {
-            // Platoboost V3 (Platorelay) Link Generation
-            const response = await fetch('https://api.platoboost.net/public/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    service: parseInt(PLATOBOOST_PROJECT),
-                    identifier: userId
-                }),
-            });
-
-            const decoded = await response.json();
-
-            if (decoded.success) {
-                const link = decoded.data.url;
-
-                // Add to Anti-Spam Memory Cache (1 Hour Expiration)
-                activeLinks.set(userId, {
-                    link: link,
-                    expiresAt: now + (60 * 60 * 1000) // 60 minutes
-                });
-
-                // Save to Dashboard State
-                appState.totalKeysGenerated++;
-                appState.recentKeys.unshift({
-                    discordId: interaction.user.tag,
-                    time: new Date().toLocaleTimeString(),
-                    link: link
-                });
-                if (appState.recentKeys.length > 20) appState.recentKeys.pop();
-
-                const messageStr = `Here is your unique Platoboost Link!`;
-                await interaction.editReply({
-                    content: `${messageStr}\n\n👉 **${link}**\n\nWhen you complete the link, enter the generated string into your Termux Script! It will permanently lock to that specific device.`,
-                    ephemeral: true
-                });
-            } else {
-                throw new Error("API rejected request: " + decoded.message);
-            }
-        } catch (error) {
-            console.error('Error generating link:', error);
-            await interaction.editReply({
-                content: `Error communicating with Platoboost. Try again later.`,
+    }
+    // 2. Button Clicks
+    else if (interaction.isButton()) {
+        if (interaction.customId === 'btn_getkey') {
+            await handleGetKey(interaction);
+        } else if (interaction.customId === 'btn_script') {
+            await interaction.reply({
+                content: `**Copy & Paste this into Termux:**\n\`\`\`bash\ncurl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh -o install.sh && bash install.sh\n\`\`\``,
                 ephemeral: true
             });
+        } else if (interaction.customId === 'btn_reset') {
+            // Pop up a Modal to ask for the Key string
+            const modal = new ModalBuilder()
+                .setCustomId('modal_reset')
+                .setTitle('Reset Hardware ID');
+
+            const keyInput = new TextInputBuilder()
+                .setCustomId('input_key')
+                .setLabel("Enter your Platoboost Key")
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('e.g., PLATO-ABCD-1234')
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(keyInput));
+            await interaction.showModal(modal);
         }
-    } else if (interaction.commandName === 'reset') {
-        const key = interaction.options.getString('key');
-        const userId = interaction.user.id;
-        await interaction.deferReply({ ephemeral: true });
-
-        try {
-            // Platoboost V3 Reset endpoint for Developers
-            const response = await fetch(`https://api.platoboost.net/public/reset/${PLATOBOOST_PROJECT}?key=${key}&identifier=${userId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const decoded = await response.json();
-
-            if (decoded.success) {
-                // Clear the anti-spam cache so they can immediately generate a new key
-                activeLinks.delete(userId);
-
-                await interaction.editReply({
-                    content: `✅ Successfully Reset Hardware ID binding for \`${key}\`!\n\nYou can now use this key on a new phone, or generate a brand new key.`,
-                    ephemeral: true
-                });
-            } else {
-                await interaction.editReply({
-                    content: `❌ Failed to reset key: ${decoded.message}\n(Make sure the key is correct and you were the one who generated it!).`,
-                    ephemeral: true
-                });
-            }
-        } catch (error) {
-            await interaction.editReply({
-                content: `Error communicating with Platoboost. Try again later.`,
-                ephemeral: true
-            });
+    }
+    // 3. Modal Submissions
+    else if (interaction.isModalSubmit()) {
+        if (interaction.customId === 'modal_reset') {
+            const userKey = interaction.fields.getTextInputValue('input_key');
+            await handleReset(interaction, userKey);
         }
     }
 });
