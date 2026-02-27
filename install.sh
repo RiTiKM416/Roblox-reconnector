@@ -12,9 +12,10 @@ echo "======================================"
 
 # --- Platoboost Authentication ---
 PROJECT_ID="21504"
-LINK="https://gateway.platoboost.com/a/$PROJECT_ID"
-echo -e "\e[33mTo use this tool, you need a valid Platoboost Key.\e[0m"
-echo -e "\e[36mGet your key here: \e[1;32m$LINK\e[0m"
+DISCORD_LINK="https://discord.gg/ZFjE9yqUNy"
+echo -e "\e[33mTo use this tool, you need a valid 24hr Access Key.\e[0m"
+echo -e "\e[36mJoin our Discord to get your key: \e[1;32m$DISCORD_LINK\e[0m"
+echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
 echo ""
 
 while true; do
@@ -55,7 +56,7 @@ while true; do
         echo "PLATOBOOST_KEY=\"$user_key\"" > "$HOME/.roblox_reconnector.conf"
         break
     else
-        echo -e "\e[31mInvalid or expired key. Please get a new one from: $LINK\e[0m\n"
+        echo -e "\e[31mInvalid or expired key. Please generate a new one in our Discord.\e[0m\n"
     fi
 done
 # --- Dependency Installation ---

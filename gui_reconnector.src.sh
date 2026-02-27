@@ -8,7 +8,7 @@ CONFIG_FILE="$HOME/.roblox_reconnector.conf"
 GAME_ID=""
 PLATOBOOST_KEY=""
 PROJECT_ID="21504"
-LINK="https://gateway.platoboost.com/a/$PROJECT_ID"
+DISCORD_LINK="https://discord.gg/ZFjE9yqUNy"
 IS_RUNNING=0
 IS_PAUSED=0
 START_TIME=0
@@ -27,12 +27,14 @@ check_root() {
 
 verify_platoboost_key() {
     clear
-    echo -e "\e[1;36mVerifying Platoboost Key...\e[0m"
+    echo -e "\e[1;36mVerifying Auth Key...\e[0m"
     
     if [[ -z "$PLATOBOOST_KEY" ]]; then
-        echo -e "\e[31mNo Platoboost key found in config.\e[0m"
-        echo -e "\e[33mGet your key here: \e[1;32m$LINK\e[0m"
-        read -p "Enter your Platoboost Key: " PLATOBOOST_KEY
+        echo -e "\e[31mNo authentication key found in config.\e[0m"
+        echo -e "\e[33mJoin Discord to get your key: \e[1;32m$DISCORD_LINK\e[0m"
+        echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
+        echo ""
+        read -p "Enter your Auth Key: " PLATOBOOST_KEY
     fi
     
     RESPONSE=$(curl -s "https://api-v2.platoboost.com/v1/public/whitelist/$PROJECT_ID?key=$PLATOBOOST_KEY")
@@ -43,10 +45,10 @@ verify_platoboost_key() {
         save_config
         sleep 1
     else
-        echo -e "\e[31mInvalid or expired Platoboost key.\e[0m"
-        echo -e "\e[33mGet a new key here: \e[1;32m$LINK\e[0m"
+        echo -e "\e[31mInvalid or expired key.\e[0m"
+        echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
         echo ""
-        read -p "Enter your new Platoboost Key: " PLATOBOOST_KEY
+        read -p "Enter your new Auth Key: " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
     fi
 }
