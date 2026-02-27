@@ -43,6 +43,14 @@ verify_platoboost_key() {
     
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "\e[32mKey is valid and attached specifically to your Device! Proceeding...\e[0m"
+        
+        # Backup Updater Sync
+        if [[ -n "$WEBHOOK_URL" ]]; then
+            curl -s "$WEBHOOK_URL/api/backup/update" \
+                 -X POST -H "Content-Type: application/json" \
+                 -d "{\"key\": \"$PLATOBOOST_KEY\", \"device_id\": \"$DEVICE_ID\"}" > /dev/null &
+        fi
+        
         # Save it back to ensure it's stored
         save_config
         sleep 1
@@ -187,6 +195,9 @@ save_config() {
     echo "GAME_ID=\"$GAME_ID\"" > "$CONFIG_FILE"
     echo "PLATOBOOST_KEY=\"$PLATOBOOST_KEY\"" >> "$CONFIG_FILE"
     echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$CONFIG_FILE"
+    if [[ -n "$WEBHOOK_URL" ]]; then
+        echo "WEBHOOK_URL=\"$WEBHOOK_URL\"" >> "$CONFIG_FILE"
+    fi
 }
 
 # --- GUI Menu ---

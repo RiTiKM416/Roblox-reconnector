@@ -497,34 +497,58 @@
 
                 <div id="key-page" class="tab-content">
                     <div class="logs">
-                        <h2>Recent Generations</h2>
-                        <% if (state.recentKeys.length===0) { %>
-                            <p style="text-align:center; color:var(--text-muted); padding: 2rem 0;">No keys generated
-                                yet.</p>
-                            <% } else { %>
-                                <table>
-                                    <thead>
+                        <h2>Active Backup Keys</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Keys dynamically synced from Termux
+                            sessions via the Backup Updater.</p>
+                        <% if (typeof backupKeys !=='undefined' && backupKeys.length> 0) { %>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Discord Profile</th>
+                                        <th>Platoboost Key</th>
+                                        <th style="text-align: right;">Quick Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% backupKeys.forEach(function(log) { %>
                                         <tr>
-                                            <th>Timestamp</th>
-                                            <th>Discord Profile</th>
-                                            <th>Secure Relay Link</th>
+                                            <td>
+                                                <%= log.time %>
+                                            </td>
+                                            <td>
+                                                <strong>
+                                                    <%= log.discordId %>
+                                                </strong><br>
+                                                <small style="color:var(--text-muted); font-family:monospace;">
+                                                    <%= log.hwid %>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <code
+                                                    style="color:var(--success); background:rgba(16,185,129,0.1); font-size:0.85rem;"><%= log.key %></code>
+                                            </td>
+                                            <td
+                                                style="text-align: right; display:flex; gap:0.5rem; justify-content:flex-end;">
+                                                <form action="/api/admin/reset-hwid" method="POST" style="margin:0;">
+                                                    <input type="hidden" name="key" value="<%= log.key %>">
+                                                    <button type="submit" class="btn btn-small"
+                                                        style="padding:0.4rem 0.8rem; font-size:0.8rem;">Reset
+                                                        HWID</button>
+                                                </form>
+                                                <form action="/api/admin/delete-key" method="POST" style="margin:0;">
+                                                    <input type="hidden" name="key" value="<%= log.key %>">
+                                                    <button type="submit" class="btn btn-small stop"
+                                                        style="padding:0.4rem 0.8rem; font-size:0.8rem;">Delete</button>
+                                                </form>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        <% state.recentKeys.forEach(function(log) { %>
-                                            <tr>
-                                                <td>
-                                                    <%= log.time %>
-                                                </td>
-                                                <td><strong>
-                                                        <%= log.discordId %>
-                                                    </strong></td>
-                                                <td><a href="<%= log.link %>" target="_blank" class="link">View Portal
-                                                        &rarr;</a></td>
-                                            </tr>
-                                            <% }); %>
-                                    </tbody>
-                                </table>
+                                        <% }); %>
+                                </tbody>
+                            </table>
+                            <% } else { %>
+                                <p style="text-align:center; color:var(--text-muted); padding: 2rem 0;">No active Termux
+                                    sessions have been synced yet.</p>
                                 <% } %>
                     </div>
                 </div>

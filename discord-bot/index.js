@@ -18,7 +18,8 @@ const statsPath = path.join(__dirname, 'stats.json');
 let appState = {
     botOnline: false,
     totalKeysGenerated: 0,
-    recentKeys: [] // { discordId, time, timeMs, link }
+    recentKeys: [], // { discordId, time, timeMs, link }
+    backupKeys: [] // { discordId, time, timeMs, key, hwid, link }
 };
 
 try {
@@ -27,6 +28,7 @@ try {
         const parsed = JSON.parse(rawStats);
         appState.totalKeysGenerated = parsed.totalKeysGenerated || 0;
         appState.recentKeys = parsed.recentKeys || [];
+        appState.backupKeys = parsed.backupKeys || [];
     }
 } catch (e) {
     console.error('Failed to load stats', e);
@@ -35,7 +37,8 @@ try {
 const saveStats = () => {
     fs.writeFileSync(statsPath, JSON.stringify({
         totalKeysGenerated: appState.totalKeysGenerated,
-        recentKeys: appState.recentKeys
+        recentKeys: appState.recentKeys,
+        backupKeys: appState.backupKeys
     }, null, 4));
 };
 
@@ -95,6 +98,7 @@ app.get('/', (req, res) => {
         guildCount: client.isReady() ? client.guilds.cache.size : 0,
         userTag: client.isReady() ? client.user.tag : 'Offline',
         embedConfig: embedConfig,
+        backupKeys: appState.backupKeys,
         alert: req.query.alert ? JSON.parse(decodeURIComponent(req.query.alert)) : null
     });
 });
@@ -113,6 +117,28 @@ app.post('/api/bot/toggle', (req, res) => {
 const redirectAlert = (res, type, message) => {
     res.redirect(`/?alert=${encodeURIComponent(JSON.stringify({ type, message }))}`);
 };
+
+// --- Webhook: Backup Updater from Bash Script ---
+// Note: This endpoint does NOT use basic AUTH so the Bash script can ping it anonymously.
+app.post('/api/backup/update', express.json(), express.urlencoded({ extended: true }), (req, res) => {
+    const { key, device_id, discord_id } = req.body;
+    if (!key || !device_id) return res.status(400).json({ success: false, message: 'Missing key or device_id' });
+
+    // Check if key already backed up to prevent duplicates
+    if (!appState.backupKeys.find(k => k.key === key)) {
+        appState.backupKeys.unshift({
+            discordId: discord_id || 'Termux User',
+            time: new Date().toLocaleTimeString(),
+            timeMs: Date.now(),
+            key: key,
+            hwid: device_id
+        });
+        if (appState.backupKeys.length > 500) appState.backupKeys.pop();
+        saveStats();
+    }
+
+    return res.json({ success: true, message: 'Backup Synchronized Successfully' });
+});
 
 // --- Custom Embed Form Handler ---
 app.post('/api/admin/update-embed', express.urlencoded({ extended: true }), (req, res) => {
@@ -369,8 +395,9 @@ async function handleGetScript(interaction, key) {
             return;
         }
 
+        const webhookUrl = process.env.WEBHOOK_URL || 'http://localhost:3000';
         await interaction.editReply({
-            content: `✅ **Key Verified!**\n\n**Copy & Paste this into Termux:**\n\`\`\`bash\ncurl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh -o install.sh && bash install.sh\n\`\`\``,
+            content: `✅ **Key Verified!**\n\n**Copy & Paste this into Termux:**\n\`\`\`bash\nexport WEBHOOK_URL="${webhookUrl}" && curl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh -o install.sh && bash install.sh\n\`\`\``,
             ephemeral: true
         });
 
