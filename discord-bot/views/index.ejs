@@ -365,6 +365,53 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="admin-section">
+                    <h2>Bot Appearance Manager</h2>
+                    <p style="color:#94a3b8; font-size:0.9rem; margin-top:0;">Customize the Discord UI sent when you
+                        type <code>/setup</code>. Save to instantly update the bot.</p>
+
+                    <form action="/api/admin/update-embed" method="POST"
+                        style="display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem;">
+                        <div class="form-group" style="background:transparent; border:none; padding:0;">
+                            <h4>Embed Title</h4>
+                            <input type="text" name="title"
+                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.title : 'Termux Reconnector Authentication' %>"
+                                placeholder="E.g., Termux Reconnector Authentication">
+                        </div>
+
+                        <div class="form-group" style="background:transparent; border:none; padding:0;">
+                            <h4>Embed Description</h4>
+                            <input type="text" name="description"
+                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.description : 'Click one of the buttons below to interact with the Free Key System.' %>"
+                                placeholder="E.g., Click below to get your key.">
+                        </div>
+
+                        <div class="form-group" style="background:transparent; border:none; padding:0;">
+                            <h4>Hex Color Code</h4>
+                            <input type="text" name="color"
+                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.color : '#38bdf8' %>"
+                                placeholder="#38bdf8">
+                        </div>
+
+                        <div class="form-group" style="background:transparent; border:none; padding:0;">
+                            <h4>Large Banner Image URL (Optional)</h4>
+                            <input type="url" name="image"
+                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.image : '' %>"
+                                placeholder="https://imgur.com/your-image.png">
+                        </div>
+
+                        <div class="form-group" style="background:transparent; border:none; padding:0;">
+                            <h4>Small Thumbnail URL (Optional)</h4>
+                            <input type="url" name="thumbnail"
+                                value="<%= typeof embedConfig !== 'undefined' ? embedConfig.thumbnail : '' %>"
+                                placeholder="https://imgur.com/your-logo.png">
+                        </div>
+
+                        <button type="submit" class="btn" style="align-self: flex-start; margin-top: 0.5rem;">Save
+                            Appearance Setup</button>
+                    </form>
+                </div>
     </div>
 
 </body>

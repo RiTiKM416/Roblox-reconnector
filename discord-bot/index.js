@@ -2,6 +2,8 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const express = require('express');
 const auth = require('basic-auth');
+const fs = require('fs');
+const path = require('path');
 
 // --- Environment Variables ---
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -17,6 +19,26 @@ const appState = {
     totalKeysGenerated: 0,
     recentKeys: [] // { discordId, time, link }
 };
+
+// --- Custom Embed Configurator ---
+const embedConfigPath = path.join(__dirname, 'embed_config.json');
+let embedConfig = {
+    title: 'Termux Reconnector Authentication',
+    description: 'Click one of the buttons below to interact with the Free Key System.',
+    color: '#38bdf8',
+    image: '',
+    thumbnail: ''
+};
+
+// Try to load any previously saved custom embed settings
+try {
+    if (fs.existsSync(embedConfigPath)) {
+        const rawConfig = fs.readFileSync(embedConfigPath, 'utf8');
+        embedConfig = { ...embedConfig, ...JSON.parse(rawConfig) };
+    }
+} catch (e) {
+    console.error('Failed to load embed config', e);
+}
 
 // --- Anti-Spam Rate Limiter ---
 // Maps discordUserId => { link: string, expiresAt: number }
@@ -45,6 +67,7 @@ app.get('/', (req, res) => {
         state: appState,
         guildCount: client.isReady() ? client.guilds.cache.size : 0,
         userTag: client.isReady() ? client.user.tag : 'Offline',
+        embedConfig: embedConfig,
         alert: req.query.alert ? JSON.parse(decodeURIComponent(req.query.alert)) : null
     });
 });
@@ -63,6 +86,26 @@ app.post('/api/bot/toggle', (req, res) => {
 const redirectAlert = (res, type, message) => {
     res.redirect(`/?alert=${encodeURIComponent(JSON.stringify({ type, message }))}`);
 };
+
+// --- Custom Embed Form Handler ---
+app.post('/api/admin/update-embed', express.urlencoded({ extended: true }), (req, res) => {
+    try {
+        const { title, description, color, image, thumbnail } = req.body;
+
+        embedConfig = {
+            title: title || 'Termux Reconnector Authentication',
+            description: description || 'Click one of the buttons below to interact with the Free Key System.',
+            color: color || '#38bdf8',
+            image: image || '',
+            thumbnail: thumbnail || ''
+        };
+
+        fs.writeFileSync(embedConfigPath, JSON.stringify(embedConfig, null, 4));
+        redirectAlert(res, 'success', 'Embed Layout successfully saved! Run /setup in Discord to see changes.');
+    } catch (e) {
+        redirectAlert(res, 'error', 'Failed to save Embed configuration.');
+    }
+});
 
 // --- Advanced Admin Key Management API ---
 const PLATOBOOST_SECRET = process.env.PLATOBOOST_SECRET; // Native Developer Secret
@@ -312,15 +355,25 @@ client.on('interactionCreate', async interaction => {
                 return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
             }
 
+            // Map valid Hex String -> hex integer
+            let embedColor = 0x38bdf8;
+            if (embedConfig.color) {
+                const hexVal = embedConfig.color.replace('#', '');
+                embedColor = parseInt(hexVal, 16);
+            }
+
             const embed = new EmbedBuilder()
-                .setTitle('Termux Reconnector Authentication')
-                .setDescription('Click one of the buttons below to interact with the Free Key System.')
-                .setColor(0x38bdf8)
+                .setTitle(embedConfig.title || 'Termux Reconnector Authentication')
+                .setDescription(embedConfig.description || 'Click one of the buttons below to interact with the Free Key System.')
+                .setColor(embedColor)
                 .addFields(
                     { name: '🔑 Get Key', value: 'Generate a new 24hr access key tied to this Discord account.' },
                     { name: '🗑️ Reset HWID', value: 'Reset the hardware binding of an active key if you changed phones.' },
                     { name: '📜 Get Script', value: 'Get the 1-line installation script to run in Termux.' }
                 );
+
+            if (embedConfig.image) embed.setImage(embedConfig.image);
+            if (embedConfig.thumbnail) embed.setThumbnail(embedConfig.thumbnail);
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('btn_getkey').setLabel('Get Key').setStyle(ButtonStyle.Success).setEmoji('🔑'),
