@@ -46,29 +46,31 @@ client.on('interactionCreate', async interaction => {
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            // Platoboost API V2 requires generating a link using the developer secret
-            // If the user hasn't provided the secret yet, fallback to the generic gateway route
-            let link = `https://gateway.platoboost.com/a/${PLATOBOOST_PROJECT}`;
-            let messageStr = "Here is your Platoboost Link to get your 24-hour key:";
-
-            if (PLATOBOOST_SECRET) {
-                // If the developer has a Platoboost server-side secret, we should generate an API link 
-                // that locks the generated key specifically to their unique Discord `userId`.
-                // Example route (This depends on Platoboost's V2 REST endpoints, commonly POST to /v1/developers/...)
-                // We're wrapping this in a try-catch in case the endpoint structure is slightly different for your tier
-
-                // TODO: Replace with the exact Platoboost Server Link Generation endpoint if required 
-                // (Usually developers just append ?id=DiscordID to the gateway link for basic tying)
-                link = `https://gateway.platoboost.com/a/${PLATOBOOST_PROJECT}?id=${userId}`;
-                messageStr = `Here is your unique Platoboost Link (Tied to Discord ID **${userId}**):`;
-            }
-
-            // Send link back to user privately
-            await interaction.editReply({
-                content: `${messageStr}\n\n👉 **${link}**\n\nOnce you complete the link, paste the generated string into the Termux Script!`,
-                ephemeral: true
+            // Platoboost V3 (Platorelay) Link Generation
+            // We request a unique authenticated URL for this specific Discord User ID.
+            const response = await fetch('https://api.platoboost.net/public/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    service: parseInt(PLATOBOOST_PROJECT),
+                    identifier: userId
+                }),
             });
 
+            const decoded = await response.json();
+
+            if (decoded.success) {
+                const link = decoded.data.url;
+                const messageStr = `Here is your unique Platoboost Link (Securely tied to your Discord ID **${userId}**):`;
+
+                // Send link back to user privately
+                await interaction.editReply({
+                    content: `${messageStr}\n\n👉 **${link}**\n\n1. Complete the link to get your access Key.\n2. In the Termux Script, enter your Discord ID (**${userId}**) and the Key!`,
+                    ephemeral: true
+                });
+            } else {
+                throw new Error("Platoboost API rejected the start request: " + decoded.message);
+            }
         } catch (error) {
             console.error('Error generating Platoboost link:', error);
             await interaction.editReply({

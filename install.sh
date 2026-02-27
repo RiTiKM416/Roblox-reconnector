@@ -19,11 +19,12 @@ echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
 echo ""
 
 while true; do
-    read -p "Enter your Platoboost Key: " user_key
+    read -p "Enter your Discord ID: " user_discord_id
+    read -p "Enter your Auth Key: " user_key
     
     # Simple check for empty string
-    if [[ -z "$user_key" ]]; then
-        echo -e "\e[31mKey cannot be empty.\e[0m\n"
+    if [[ -z "$user_key" || -z "$user_discord_id" ]]; then
+        echo -e "\e[31mKey and Discord ID cannot be empty.\e[0m\n"
         continue
     fi
     
@@ -35,25 +36,14 @@ while true; do
     # Query parameters are typically ?key=... &project=...
     
     # Attempting standard validation pattern
-    RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "https://api.platoboost.com/v1/public/whitelist/verify?project_id=$PROJECT_ID&key=$user_key")
-    HTTP_STATUS=$(echo "$RESPONSE" | tail -n1)
-    BODY=$(echo "$RESPONSE" | sed '$d')
-    
-    # If the JSON response contains true/success or HTTP 200, assume it's good.
-    # Note: Platoboost V2 API for Lua often looks like: https://api-v2.platoboost.com/v1/public/whitelist/21504?key=YOUR_KEY
-    # We will use the structure from their standard URL endpoints.
-    
-    # We will just do a simpler verify to see if the key matches the length/format, or assume standard JSON response.
-    # Actually, the most robust way to check in bash is to look for "success" or "true" in the response body if HTTP is 200.
-    
-    # For now, let's use the standard platoboost v2 verify endpoint route
-    RESPONSE=$(curl -s "https://api-v2.platoboost.com/v1/public/whitelist/$PROJECT_ID?key=$user_key")
+    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$user_discord_id&key=$user_key")
     
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "\e[32mAuthentication successful! Key is valid.\e[0m"
         echo ""
         # Save the valid key to config so the main script can use it
         echo "PLATOBOOST_KEY=\"$user_key\"" > "$HOME/.roblox_reconnector.conf"
+        echo "DISCORD_ID=\"$user_discord_id\"" >> "$HOME/.roblox_reconnector.conf"
         break
     else
         echo -e "\e[31mInvalid or expired key. Please generate a new one in our Discord.\e[0m\n"
