@@ -10,7 +10,7 @@ Open **Termux** on your rooted Android device and paste this single command to d
 curl -O https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh && bash install.sh
 ```
 
-*(Note: The setup requires an authentication key provided by the developer. Root access `su` must be granted when prompted by your emulator/device).*
+*(Note: The setup requires a **Platoboost Key** to authenticate. A link will be provided during installation to generate your key. Root access `su` must be granted when prompted by your emulator/device).*
 
 ## 🌟 Key Features
 
