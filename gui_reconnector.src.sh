@@ -7,7 +7,7 @@
 CONFIG_FILE="$HOME/.roblox_reconnector.conf"
 GAME_ID=""
 PLATOBOOST_KEY=""
-DISCORD_ID=""
+DEVICE_ID=""
 PROJECT_ID="21504"
 DISCORD_LINK="https://discord.gg/ZFjE9yqUNy"
 IS_RUNNING=0
@@ -32,18 +32,17 @@ verify_platoboost_key() {
     
     if [[ -z "$PLATOBOOST_KEY" ]]; then
         echo -e "\e[31mNo authentication key found in config.\e[0m"
-        echo -e "\e[33mJoin Discord to get your key: \e[1;32m$DISCORD_LINK\e[0m"
-        echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
+        echo -e "\e[33mGet your daily key on our Discord: \e[1;32m$DISCORD_LINK\e[0m"
+        echo -e "\e[36m(Go to #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
         echo ""
-        read -p "Enter your Discord ID: " DISCORD_ID
         read -p "Enter your Auth Key: " PLATOBOOST_KEY
     fi
     
-    # Platorelay V3 Verification Endpoint
-    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DISCORD_ID&key=$PLATOBOOST_KEY")
+    # Platorelay V3 Verification Endpoint - Hidden HWID bind
+    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$PLATOBOOST_KEY")
     
     if echo "$RESPONSE" | grep -qi "true"; then
-        echo -e "\e[32mKey is valid! Proceeding...\e[0m"
+        echo -e "\e[32mKey is valid and attached specifically to your Device! Proceeding...\e[0m"
         # Save it back to ensure it's stored
         save_config
         sleep 1
@@ -51,7 +50,6 @@ verify_platoboost_key() {
         echo -e "\e[31mInvalid or expired key.\e[0m"
         echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
         echo ""
-        read -p "Enter your Discord ID: " DISCORD_ID
         read -p "Enter your new Auth Key: " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
     fi
@@ -175,16 +173,20 @@ load_config() {
         if [[ -n "$PLATOBOOST_KEY" ]]; then
             echo -e "\e[32mLoaded saved Auth Key\e[0m"
         fi
-        if [[ -n "$DISCORD_ID" ]]; then
-            echo -e "\e[32mLoaded saved Discord ID: $DISCORD_ID\e[0m"
-        fi
     fi
+    
+    # Generate HWID if missing
+    if [[ -z "$DEVICE_ID" ]]; then
+        DEVICE_ID="DEV-$(cat /proc/sys/kernel/random/uuid | cut -c 1-8 | tr 'a-z' 'A-Z')"
+        save_config
+    fi
+    echo -e "\e[32mDevice HWID: $DEVICE_ID\e[0m"
 }
 
 save_config() {
     echo "GAME_ID=\"$GAME_ID\"" > "$CONFIG_FILE"
     echo "PLATOBOOST_KEY=\"$PLATOBOOST_KEY\"" >> "$CONFIG_FILE"
-    echo "DISCORD_ID=\"$DISCORD_ID\"" >> "$CONFIG_FILE"
+    echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$CONFIG_FILE"
 }
 
 # --- GUI Menu ---

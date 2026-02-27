@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termux Reconnector Admin</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #334155;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+        }
+
+        .card .value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #f8fafc;
+            margin: 0;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .online {
+            background-color: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+        }
+
+        .offline {
+            background-color: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #6366f1, #3b82f6);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px -1px rgba(99, 102, 241, 0.6);
+        }
+
+        .btn.stop {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn.stop:hover {
+            box-shadow: 0 6px 8px -1px rgba(239, 68, 68, 0.6);
+        }
+
+        .logs {
+            background-color: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+            margin-top: 2rem;
+        }
+
+        .logs h2 {
+            margin-top: 0;
+            color: #38bdf8;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 0.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        th {
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        a.link {
+            color: #38bdf8;
+            text-decoration: none;
+        }
+
+        a.link:hover {
+            text-decoration: underline;
+        }
+
+        .admin-section {
+            background-color: #1e293b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid #334155;
+            margin-top: 2rem;
+        }
+
+        .admin-section h2 {
+            margin-top: 0;
+            color: #818cf8;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 0.5rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .form-group {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group h4 {
+            margin: 0;
+            color: #f8fafc;
+        }
+
+        .form-group p {
+            margin: 0;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .form-group input {
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: white;
+            outline: none;
+        }
+
+        .form-group input:focus {
+            border-color: #38bdf8;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            border-radius: 4px;
+        }
+
+        .notification {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .notify-success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid #22c55e;
+            color: #4ade80;
+        }
+
+        .notify-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #f87171;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Termux Admin Panel</h1>
+            <p>Discord Bot & HWID Session Manager</p>
+        </div>
+
+        <% if (typeof alert !=='undefined' && alert) { %>
+            <div class="notification <%= alert.type === 'success' ? 'notify-success' : 'notify-error' %>">
+                <%= alert.message %>
+            </div>
+            <% } %>
+
+                <div class="stats-grid">
+                    <div class="card">
+                        <h3>Bot Status</h3>
+                        <p class="value">
+                            <span class="status-dot <%= state.botOnline ? 'online' : 'offline' %>"></span>
+                            <%= state.botOnline ? 'Online' : 'Offline' %>
+                        </p>
+                    </div>
+                    <div class="card">
+                        <h3>Active Keys Generated</h3>
+                        <p class="value">
+                            <%= state.totalKeysGenerated %>
+                        </p>
+                    </div>
+                    <div class="card">
+                        <h3>Discord Connected</h3>
+                        <p class="value">
+                            <%= userTag %>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <form action="/api/bot/toggle" method="POST">
+                        <% if (state.botOnline) { %>
+                            <button type="submit" class="btn stop">Shut Down Bot</button>
+                            <% } else { %>
+                                <button type="submit" class="btn">Start Discord Bot</button>
+                                <% } %>
+                    </form>
+                    <button class="btn" onclick="location.reload()">Refresh Data</button>
+                </div>
+
+                <div class="logs">
+                    <h2>Recent Hardware Key Generations</h2>
+                    <% if (state.recentKeys.length===0) { %>
+                        <p style="text-align:center; color:#94a3b8;">No keys generated yet.</p>
+                        <% } else { %>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Discord Account</th>
+                                        <th>Platorelay Secure Link</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% state.recentKeys.forEach(function(log) { %>
+                                        <tr>
+                                            <td>
+                                                <%= log.time %>
+                                            </td>
+                                            <td><strong>
+                                                    <%= log.discordId %>
+                                                </strong></td>
+                                            <td><a href="<%= log.link %>" target="_blank" class="link">View Generation
+                                                    Link</a></td>
+                                        </tr>
+                                        <% }); %>
+                                </tbody>
+                            </table>
+                            <% } %>
+                </div>
+
+                <div class="admin-section">
+                    <h2>Advanced Key Management</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <h4>Generate Instant Key</h4>
+                            <p>Bypass Discord and get a direct Platorelay link.</p>
+                            <form action="/api/admin/create-key" method="POST"
+                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                <button type="submit" class="btn btn-small">Generate Link</button>
+                            </form>
+                        </div>
+
+                        <div class="form-group">
+                            <h4>Delete / Blacklist Key</h4>
+                            <p>Permanently invalidate a specific key.</p>
+                            <form action="/api/admin/delete-key" method="POST"
+                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                <button type="submit" class="btn btn-small stop">Delete Key</button>
+                            </form>
+                        </div>
+
+                        <div class="form-group">
+                            <h4>Forcible HWID Reset</h4>
+                            <p>Unbind a key from a user's device if they can't use Discord.</p>
+                            <form action="/api/admin/reset-hwid" method="POST"
+                                style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
+                                <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                <button type="submit" class="btn btn-small">Reset Binding</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+    </div>
+
+</body>
+
+</html>

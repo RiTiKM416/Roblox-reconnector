@@ -19,12 +19,11 @@ echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
 echo ""
 
 while true; do
-    read -p "Enter your Discord ID: " user_discord_id
     read -p "Enter your Auth Key: " user_key
     
     # Simple check for empty string
-    if [[ -z "$user_key" || -z "$user_discord_id" ]]; then
-        echo -e "\e[31mKey and Discord ID cannot be empty.\e[0m\n"
+    if [[ -z "$user_key" ]]; then
+        echo -e "\e[31mKey cannot be empty.\e[0m\n"
         continue
     fi
     
@@ -35,15 +34,18 @@ while true; do
     # We will use the standard public API endpoint for Platoboost: https://api.platoboost.com/v1/public/whitelist/verify
     # Query parameters are typically ?key=... &project=...
     
+    # Generate a hardware ID for this device
+    DEVICE_ID="DEV-$(cat /proc/sys/kernel/random/uuid | cut -c 1-8 | tr 'a-z' 'A-Z')"
+    
     # Attempting standard validation pattern
-    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$user_discord_id&key=$user_key")
+    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$user_key")
     
     if echo "$RESPONSE" | grep -qi "true"; then
-        echo -e "\e[32mAuthentication successful! Key is valid.\e[0m"
+        echo -e "\e[32mAuthentication successful! Key is permanently bound to this Device.\e[0m"
         echo ""
-        # Save the valid key to config so the main script can use it
+        # Save the valid key and device ID to config so the main script can use it
         echo "PLATOBOOST_KEY=\"$user_key\"" > "$HOME/.roblox_reconnector.conf"
-        echo "DISCORD_ID=\"$user_discord_id\"" >> "$HOME/.roblox_reconnector.conf"
+        echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$HOME/.roblox_reconnector.conf"
         break
     else
         echo -e "\e[31mInvalid or expired key. Please generate a new one in our Discord.\e[0m\n"
