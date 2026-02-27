@@ -309,9 +309,9 @@ client.on('interactionCreate', async interaction => {
 
             const keyInput = new TextInputBuilder()
                 .setCustomId('input_key')
-                .setLabel("Enter your Platoboost Key")
+                .setLabel("Enter your Reconnector key")
                 .setStyle(TextInputStyle.Short)
-                .setPlaceholder('e.g., PLATO-ABCD-1234')
+                .setPlaceholder('e.g., FREE_1cff246e93...#######')
                 .setRequired(true);
 
             modal.addComponents(new ActionRowBuilder().addComponents(keyInput));
