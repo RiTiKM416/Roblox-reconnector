@@ -151,7 +151,12 @@ app.post('/api/admin/create-key', async (req, res) => {
         const decoded = await response.json();
         if (decoded.success) {
             appState.totalKeysGenerated++;
-            appState.recentKeys.unshift({ discordId: 'Admin Web Console', time: new Date().toLocaleTimeString(), timeMs: Date.now(), link: decoded.data.url });
+            appState.recentKeys.unshift({
+                discordId: 'Web Console Admin',
+                time: new Date().toLocaleTimeString(),
+                timeMs: Date.now(),
+                link: decoded.data.url
+            });
             if (appState.recentKeys.length > 500) appState.recentKeys.pop();
             saveStats();
             redirectAlert(res, 'success', `Generated Admin Link: <a href="${decoded.data.url}" target="_blank" class="link" style="color:#10b981; font-weight:bold;">${decoded.data.url}</a>`);
