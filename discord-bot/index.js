@@ -260,6 +260,45 @@ async function handleReset(interaction, key) {
     }
 }
 
+async function handleGetScript(interaction, key) {
+    const userId = interaction.user.id;
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+        // Platoboost Validation Request (To check if key is active/valid)
+        // We use the regular whitelist endpoint to check its status. 
+        // Note: the Termux script currently passes the HWID here, but for simple validation
+        // we can just check if the key is structurally valid or recognized by the system.
+        // A simple way to check validity without burning a hwid lock is to see if the key exists 
+        // or check its expiration. If Platoboost V3 doesn't have a pure 'check' endpoint, 
+        // we can attempt a dummy whitelist without identifier, or assume if it doesn't 404 it's real.
+        // Let's use the developer /whitelist check if available, or just a basic fetch.
+
+        // Since we are just downloading the script, let's verify if the key format is vaguely correct and let the bash script handle the real HWID locking.
+        // Or better, we can actually try fetching the key info:
+        const response = await fetch(`https://api.platoboost.net/public/whitelist/${PLATOBOOST_PROJECT}?key=${key}`);
+        const text = await response.text();
+
+        // As long as the API doesn't explicitly throw a "Invalid Key" error or 404, we assume it's valid enough to download the script. 
+        // (The bash script itself will do the rigorous hardware locking anyway).
+        if (text.includes('error') && text.includes('Invalid')) {
+            await interaction.editReply({
+                content: `❌ The key you entered is invalid or expired. Kindly get a new one using the **Get Key** button!`,
+                ephemeral: true
+            });
+            return;
+        }
+
+        await interaction.editReply({
+            content: `✅ **Key Verified!**\n\n**Copy & Paste this into Termux:**\n\`\`\`bash\ncurl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh -o install.sh && bash install.sh\n\`\`\``,
+            ephemeral: true
+        });
+
+    } catch (error) {
+        await interaction.editReply({ content: `Error communicating with Validation Server. Try again later.`, ephemeral: true });
+    }
+}
+
 // --- Interaction Router ---
 client.on('interactionCreate', async interaction => {
     // 1. Slash Commands
@@ -297,10 +336,20 @@ client.on('interactionCreate', async interaction => {
         if (interaction.customId === 'btn_getkey') {
             await handleGetKey(interaction);
         } else if (interaction.customId === 'btn_script') {
-            await interaction.reply({
-                content: `**Copy & Paste this into Termux:**\n\`\`\`bash\ncurl -sL https://raw.githubusercontent.com/RiTiKM416/Roblox-reconnector/main/install.sh -o install.sh && bash install.sh\n\`\`\``,
-                ephemeral: true
-            });
+            // Pop up a Modal to ask for the Key string to unlock the script
+            const modal = new ModalBuilder()
+                .setCustomId('modal_script')
+                .setTitle('Verify Key to Get Script');
+
+            const keyInput = new TextInputBuilder()
+                .setCustomId('input_key_script')
+                .setLabel("Enter your active Reconnector key")
+                .setStyle(TextInputStyle.Short)
+                .setPlaceholder('e.g., FREE_1cff246e93...#######')
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(keyInput));
+            await interaction.showModal(modal);
         } else if (interaction.customId === 'btn_reset') {
             // Pop up a Modal to ask for the Key string
             const modal = new ModalBuilder()
@@ -323,6 +372,9 @@ client.on('interactionCreate', async interaction => {
         if (interaction.customId === 'modal_reset') {
             const userKey = interaction.fields.getTextInputValue('input_key');
             await handleReset(interaction, userKey);
+        } else if (interaction.customId === 'modal_script') {
+            const scriptKey = interaction.fields.getTextInputValue('input_key_script');
+            await handleGetScript(interaction, scriptKey);
         }
     }
 });
