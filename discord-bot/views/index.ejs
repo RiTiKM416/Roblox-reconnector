@@ -463,15 +463,21 @@
                             </p>
                         </div>
                         <div class="card">
-                            <h3>Active Keys</h3>
+                            <h3>Total Keys Generated</h3>
                             <p class="value">
                                 <%= state.totalKeysGenerated %>
                             </p>
                         </div>
                         <div class="card">
-                            <h3>Host Connection</h3>
+                            <h3>Active Keys (24h)</h3>
                             <p class="value">
-                                <%= userTag %>
+                                <%= typeof activeCount !=='undefined' ? activeCount : 0 %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Expired Keys</h3>
+                            <p class="value">
+                                <%= typeof expiredCount !=='undefined' ? expiredCount : 0 %>
                             </p>
                         </div>
                     </div>

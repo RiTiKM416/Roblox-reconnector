@@ -13,11 +13,30 @@ const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
 const PORT = process.env.PORT || 3000;
 
-// --- State Database (In-Memory) ---
-const appState = {
+// --- State Database (Persistent) ---
+const statsPath = path.join(__dirname, 'stats.json');
+let appState = {
     botOnline: false,
     totalKeysGenerated: 0,
-    recentKeys: [] // { discordId, time, link }
+    recentKeys: [] // { discordId, time, timeMs, link }
+};
+
+try {
+    if (fs.existsSync(statsPath)) {
+        const rawStats = fs.readFileSync(statsPath, 'utf8');
+        const parsed = JSON.parse(rawStats);
+        appState.totalKeysGenerated = parsed.totalKeysGenerated || 0;
+        appState.recentKeys = parsed.recentKeys || [];
+    }
+} catch (e) {
+    console.error('Failed to load stats', e);
+}
+
+const saveStats = () => {
+    fs.writeFileSync(statsPath, JSON.stringify({
+        totalKeysGenerated: appState.totalKeysGenerated,
+        recentKeys: appState.recentKeys
+    }, null, 4));
 };
 
 // --- Custom Embed Configurator ---
@@ -63,8 +82,16 @@ app.use(authMiddleware);
 
 // Web Routes
 app.get('/', (req, res) => {
+    const now = Date.now();
+    // A key is "Active" if generated within the last 24 hours (86400000 ms)
+    const activeCount = appState.recentKeys.filter(k => (now - (k.timeMs || 0)) < 86400000).length;
+    let expiredCount = appState.totalKeysGenerated - activeCount;
+    if (expiredCount < 0) expiredCount = 0;
+
     res.render('index', {
         state: appState,
+        activeCount: activeCount,
+        expiredCount: expiredCount,
         guildCount: client.isReady() ? client.guilds.cache.size : 0,
         userTag: client.isReady() ? client.user.tag : 'Offline',
         embedConfig: embedConfig,
@@ -123,6 +150,10 @@ app.post('/api/admin/create-key', async (req, res) => {
         });
         const decoded = await response.json();
         if (decoded.success) {
+            appState.totalKeysGenerated++;
+            appState.recentKeys.unshift({ discordId: 'Admin Web Console', time: new Date().toLocaleTimeString(), timeMs: Date.now(), link: decoded.data.url });
+            if (appState.recentKeys.length > 500) appState.recentKeys.pop();
+            saveStats();
             redirectAlert(res, 'success', `Generated Admin Link: <a href="${decoded.data.url}" target="_blank" class="link" style="color:#10b981; font-weight:bold;">${decoded.data.url}</a>`);
         } else {
             redirectAlert(res, 'error', `API Rejected: ${decoded.message}`);
@@ -260,8 +291,9 @@ async function handleGetKey(interaction) {
             activeLinks.set(userId, { link: link, expiresAt: now + (60 * 60 * 1000) });
             // Save to Dashboard State
             appState.totalKeysGenerated++;
-            appState.recentKeys.unshift({ discordId: interaction.user.tag, time: new Date().toLocaleTimeString(), link: link });
-            if (appState.recentKeys.length > 20) appState.recentKeys.pop();
+            appState.recentKeys.unshift({ discordId: interaction.user.tag, time: new Date().toLocaleTimeString(), timeMs: now, link: link });
+            if (appState.recentKeys.length > 500) appState.recentKeys.pop();
+            saveStats();
 
             await interaction.editReply({
                 content: `Here is your unique Platoboost Link!\n\n👉 **${link}**\n\nWhen you complete the link, enter the generated string into your Termux Script! It will permanently lock to that specific device.`,
