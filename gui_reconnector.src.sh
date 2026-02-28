@@ -4,7 +4,8 @@
 # This script runs locally on the device AFTER installation.
 
 # --- Configuration & State Variables ---
-CONFIG_FILE="$HOME/.roblox_reconnector.conf"
+CONFIG_DIR="$HOME/.termux_reconnector/configs"
+CURRENT_CONFIG=""
 GAME_ID=""
 PLATOBOOST_KEY=""
 DEVICE_ID=""
@@ -14,9 +15,32 @@ IS_RUNNING=0
 IS_PAUSED=0
 START_TIME=0
 LAST_LAUNCH_TIME=0
-ROBLOX_PKG="com.roblox.client"
+# Arrays and specific tracking variables
+TARGET_PACKAGES=()
+TARGET_WEBHOOK=""
+INTENTIONAL_CRASH_TIMER=0
+LAST_INTENTIONAL_CRASH=0
+LAST_WEBHOOK_TIME=0
+TOTAL_CRASHES=0
+TOTAL_GOOGLE_POPUPS=0
+
+mkdir -p "$CONFIG_DIR"
 
 # --- Utility Functions ---
+
+show_progress() {
+    local message="$1"
+    local steps=25
+    local delay=0.1
+    
+    echo -en "\e[1;36m$message\e[0m  "
+    echo -en "\e[1;30m[\e[0m"
+    for ((i=1; i<=steps; i++)); do
+        echo -en "\e[1;32m#\e[0m"
+        sleep "$delay"
+    done
+    echo -e "\e[1;30m]\e[0m \e[1;32mOK\e[0m"
+}
 
 check_root() {
     if ! su -c 'echo "Root access granted"' >/dev/null 2>&1; then
@@ -28,7 +52,12 @@ check_root() {
 
 verify_platoboost_key() {
     clear
-    echo -e "\e[1;36mVerifying Auth Key...\e[0m"
+    echo -e "\e[1;35m  ____      _     _               \e[0m"
+    echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
+    echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
+    echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
+    echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
+    echo -e "\e[1;30m==========================================\e[0m"
     
     if [[ -z "$PLATOBOOST_KEY" ]]; then
         echo -e "\e[31mNo authentication key found in config.\e[0m"
@@ -37,6 +66,8 @@ verify_platoboost_key() {
         echo ""
         read -p "Enter your Auth Key: " PLATOBOOST_KEY
     fi
+    
+    show_progress "Authenticating Device HWID..."
     
     # Platorelay V3 Verification Endpoint - Hidden HWID bind
     RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$PLATOBOOST_KEY")
@@ -89,12 +120,14 @@ update_logger() {
 }
 
 is_roblox_running() {
-    local pid=$(su -c "pidof $ROBLOX_PKG" 2>/dev/null)
-    if [[ -z "$pid" ]]; then
-        return 1
-    else
-        return 0
-    fi
+    # Check if ANY of the target packages are running
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        local pid=$(su -c "pidof $pkg" 2>/dev/null)
+        if [[ -n "$pid" ]]; then
+            return 0 # True, at least one is running
+        fi
+    done
+    return 1 # False, none are running
 }
 
 # Function to check if the Google Sign-in window has stolen focus
@@ -112,38 +145,44 @@ is_google_signin_focused() {
 
 # Function to check if Roblox dropped back to the Main Menu (Game crashed, but app is open)
 is_roblox_in_main_menu() {
-    local pid=$(su -c "pidof $ROBLOX_PKG" 2>/dev/null)
-    if [[ -z "$pid" ]]; then
-        return 1 # If it's closed entirely, the running check will catch it
-    fi
+    # Check each package individually
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        local pid=$(su -c "pidof $pkg" 2>/dev/null)
+        if [[ -z "$pid" ]]; then
+            continue # If this specific one is completely closed, skip to next package
+        fi
+        
+        # Grace period: Wait 45 seconds after launch before assuming the game has crashed
+        local current_time=$(date +%s)
+        if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 45 ]]; then
+            return 1 # Assume it's still loading safely
+        fi
+        
+        # Check if the focused window is the React Main Menu instead of a 3D Game Surface
+        local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
+        
+        # If the focus is explicitly the Roblox React Home/Menu UI, it means we dropped out of the game
+        if echo "$focused_window" | grep -qiE "$pkg/(.*ActivityReact.*|.*MainActivity.*)"; then
+            return 0 # True, we are stuck on the main menu
+        fi
+    done
     
-    # Grace period: Wait 45 seconds after launch before assuming the game has crashed
-    # Roblox takes a long time to process the deep-link and load the 3D surface
-    local current_time=$(date +%s)
-    if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 45 ]]; then
-        return 1 # Assume it's still loading safely
-    fi
-    
-    # Check if the focused window is the React Main Menu instead of a 3D Game Surface
-    local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
-    
-    # If the focus is explicitly the Roblox React Home/Menu UI, it means we dropped out of the game
-    if echo "$focused_window" | grep -qiE "com.roblox.client/(.*ActivityReact.*|.*MainActivity.*)"; then
-        return 0 # True, we are stuck on the main menu
-    else
-        return 1 # False, we are presumably in-game
-    fi
+    return 1 # False, none are stuck on the menu
 }
 
 launch_game() {
-    print_msg "\e[33mEnsuring Roblox is closed before launch...\e[0m"
-    su -c "am force-stop $ROBLOX_PKG"
+    print_msg "\e[33mEnsuring Roblox packages are closed before launch...\e[0m"
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        su -c "am force-stop $pkg"
+    done
     sleep 3
 
-    print_msg "\e[36mRoblox is opening...\e[0m"
-    su -c "am start -a android.intent.action.VIEW -d \"roblox://placeId=${GAME_ID}\" >/dev/null 2>&1"
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        su -c "am start -a android.intent.action.VIEW -d \"roblox://placeId=${GAME_ID}\" $pkg >/dev/null 2>&1"
+    done
     
-    sleep 4
+    show_progress "Injecting Roblox Memory Space..."
+    sleep 1
     
     if is_roblox_running; then
         print_msg "\e[36mRoblox is opened.\e[0m"
@@ -170,54 +209,117 @@ launch_game() {
     fi
 }
 
-# --- Config Management ---
-load_config() {
-    if [[ -f "$CONFIG_FILE" ]]; then
-        # Safely source the config file
-        source "$CONFIG_FILE"
-        if [[ -n "$GAME_ID" ]]; then
-            echo -e "\e[32mLoaded saved Game ID: $GAME_ID\e[0m"
-        fi
-        if [[ -n "$PLATOBOOST_KEY" ]]; then
-            echo -e "\e[32mLoaded saved Auth Key\e[0m"
-        fi
+# --- Device HWID Management ---
+load_hwid() {
+    # We store the global HWID and Platoboost key centrally since they apply to the whole device, not specific game configs.
+    local auth_file="$HOME/.termux_reconnector_auth"
+    if [[ -f "$auth_file" ]]; then
+        source "$auth_file"
     fi
     
-    # Generate HWID if missing
     if [[ -z "$DEVICE_ID" ]]; then
         DEVICE_ID="DEV-$(cat /proc/sys/kernel/random/uuid | cut -c 1-8 | tr 'a-z' 'A-Z')"
-        save_config
+        echo "DEVICE_ID=\"$DEVICE_ID\"" > "$auth_file"
     fi
     echo -e "\e[32mDevice HWID: $DEVICE_ID\e[0m"
 }
 
-save_config() {
-    echo "GAME_ID=\"$GAME_ID\"" > "$CONFIG_FILE"
-    echo "PLATOBOOST_KEY=\"$PLATOBOOST_KEY\"" >> "$CONFIG_FILE"
-    echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$CONFIG_FILE"
-    if [[ -n "$WEBHOOK_URL" ]]; then
-        echo "WEBHOOK_URL=\"$WEBHOOK_URL\"" >> "$CONFIG_FILE"
+save_hwid() {
+    local auth_file="$HOME/.termux_reconnector_auth"
+    echo "DEVICE_ID=\"$DEVICE_ID\"" > "$auth_file"
+    echo "PLATOBOOST_KEY=\"$PLATOBOOST_KEY\"" >> "$auth_file"
+}
+
+load_config() {
+    if [[ -f "$CURRENT_CONFIG" ]]; then
+        source "$CURRENT_CONFIG"
+        # TARGET_PACKAGES is loaded as an array string, we must evaluate it or load line by line.
+        # It's safer to source it if written properly in save_config
     fi
+}
+
+save_config() {
+    # Generate array string representation securely
+    local pkg_str="("
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        pkg_str+="\"$pkg\" "
+    done
+    pkg_str+=")"
+    
+    echo "GAME_ID=\"$GAME_ID\"" > "$CURRENT_CONFIG"
+    echo "TARGET_WEBHOOK=\"$TARGET_WEBHOOK\"" >> "$CURRENT_CONFIG"
+    echo "INTENTIONAL_CRASH_TIMER=\"$INTENTIONAL_CRASH_TIMER\"" >> "$CURRENT_CONFIG"
+    echo "TARGET_PACKAGES=$pkg_str" >> "$CURRENT_CONFIG"
+}
+
+# --- Webhook Logger ---
+trigger_webhook() {
+    if [[ -z "$TARGET_WEBHOOK" ]]; then return; fi
+    
+    local img_path="/sdcard/termux_monitor_snap.png"
+    # Take screenshot as root and save to accessible SD card location
+    su -c "screencap -p $img_path"
+    
+    # Gather Metrics
+    local mem_total=$(su -c "free -m | grep Mem | awk '{print \$2}'" | tr -d '\r')
+    local mem_used=$(su -c "free -m | grep Mem | awk '{print \$3}'" | tr -d '\r')
+    
+    local uptime_seconds=$(awk '{print int($1)}' /proc/uptime)
+    local uptime_hours=$((uptime_seconds / 3600))
+    local uptime_mins=$(((uptime_seconds % 3600) / 60))
+    local device_uptime="${uptime_hours}h ${uptime_mins}m"
+    
+    local current_time=$(date +%s)
+    local script_elapsed=$((current_time - START_TIME))
+    local script_mins=$(((script_elapsed % 3600) / 60))
+    local script_hours=$((script_elapsed / 3600))
+    
+    # We use jq to build the JSON safely if available, but for raw bash we format carefully.
+    local json_payload=$(cat <<EOF
+{
+  "embeds": [
+    {
+      "title": "Status Report: active",
+      "color": 3922152,
+      "fields": [
+        { "name": "💻 HWID", "value": "\`$DEVICE_ID\`", "inline": true },
+        { "name": "⏱ Script Uptime", "value": "\`${script_hours}h ${script_mins}m\`", "inline": true },
+        { "name": "🔋 Device Uptime", "value": "\`${device_uptime}\`", "inline": true },
+        { "name": "💥 Crashes Recovered", "value": "\`$TOTAL_CRASHES\`", "inline": true },
+        { "name": "🧩 Google Sign-Ins", "value": "\`$TOTAL_GOOGLE_POPUPS\`", "inline": true },
+        { "name": "📊 Device RAM", "value": "\`${mem_used}MB / ${mem_total}MB\`", "inline": true }
+      ],
+      "footer": { "text": "Termux Reconnector Analytics" }
+    }
+  ]
+}
+EOF
+)
+    
+    # Post JSON Embed, then Post Screenshot (Standard Discord webhook format requires multipart if sending image together, 
+    # but the easiest Bash way is sending two fast payloads: The Embed, then the Raw File).
+    curl -s -H "Content-Type: application/json" -X POST -d "$json_payload" "$TARGET_WEBHOOK" >/dev/null
+    
+    # Send image
+    curl -s -F "file=@$img_path" "$TARGET_WEBHOOK" >/dev/null
+    
+    # Cleanup image
+    su -c "rm -f $img_path"
 }
 
 # --- GUI Menu ---
 show_menu() {
     clear
-    echo -e "\e[1;34m==========================================\e[0m"
-    echo -e "\e[1;37m      Roblox Termux Auto-Reconnector      \e[0m"
-    echo -e "\e[1;34m==========================================\e[0m"
-    echo -e "  \e[36mPremium Validation Active (Platoboost)\e[0m"
-    echo ""
+    echo -e "\e[1;35m  ____      _     _               \e[0m"
+    echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
+    echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
+    echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
+    echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
+    echo -e "\e[1;36m      C O N F I G   M A N A G E R \e[0m"
+    echo -e "\e[1;30m==========================================\e[0m"
     
-    load_config
-    
-    if [[ -n "$LAST_GAME_ID" ]]; then
-        echo -e "  \e[1;32m[1]\e[0m Start Game (Saved ID: \e[1;33m$LAST_GAME_ID\e[0m)"
-        echo -e "  \e[1;32m[2]\e[0m Enter New Game ID"
-    else
-        echo -e "  \e[1;30m[1] Start Game (No User Configuration saved)\e[0m"
-        echo -e "  \e[1;32m[2]\e[0m Enter Game ID"
-    fi
+    echo -e "  \e[1;32m[1]\e[0m Load existing Config"
+    echo -e "  \e[1;32m[2]\e[0m Create a new Config"
     echo -e "  \e[1;31m[3]\e[0m Exit Application"
     echo ""
     echo -e "\e[1;34m==========================================\e[0m"
@@ -226,26 +328,138 @@ show_menu() {
     
     case $menu_choice in
         1)
-            if [[ -n "$LAST_GAME_ID" ]]; then
-                GAME_ID="$LAST_GAME_ID"
+            # List available configs
+            clear
+            echo -e "\e[1;36mSaved Configurations:\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            # Populate array of configs
+            local conf_files=()
+            local i=1
+            for f in "$CONFIG_DIR"/*.conf; do
+                if [[ -f "$f" ]]; then
+                    conf_files+=("$f")
+                    # Extract raw filename without directory and extension
+                    local basename=$(basename "$f" .conf)
+                    echo -e "  \e[1;33m[$i]\e[0m $basename"
+                    ((i++))
+                fi
+            done
+            
+            if [[ ${#conf_files[@]} -eq 0 ]]; then
+                echo -e "\e[31mNo configurations found.\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            echo -e "  \e[1;31m[0]\e[0m Back"
+            echo ""
+            read -p "Select a config to load by number: " conf_choice
+            
+            if [[ "$conf_choice" == "0" ]]; then
+                show_menu
+                return
+            fi
+            
+            # Arrays are 0 indexed, user selection is 1-indexed
+            local array_index=$((conf_choice - 1))
+            if [[ $array_index -ge 0 && $array_index -lt ${#conf_files[@]} ]]; then
+                CURRENT_CONFIG="${conf_files[$array_index]}"
+                load_config
+                echo -e "\e[32mSuccessfully loaded config!\e[0m"
+                sleep 1
             else
-                echo -e "\e[31mNo saved Game ID found. Please select option 2.\e[0m"
+                echo -e "\e[31mInvalid selection.\e[0m"
                 sleep 2
                 show_menu
             fi
             ;;
         2)
-            echo ""
-            read -p "Enter the new Roblox Game ID (e.g., 95878078212429): " GAME_ID
-            if [[ -z "$GAME_ID" ]]; then
-                echo -e "\e[31mGame ID cannot be empty.\e[0m"
+            clear
+            echo -e "\e[1;36mCreating New Configuration...\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            # Step 1: Detect Packages
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            local available_pkgs=()
+            # We use root to reliably list all packages, then grep for roblox
+            local raw_pkgs=$(su -c "pm list packages" | grep -i "roblox" | awk -F':' '{print $2}' | tr -d '\r')
+            
+            if [[ -z "$raw_pkgs" ]]; then
+                echo -e "\e[31mNo Roblox packages detected on this device!\e[0m"
                 sleep 2
                 show_menu
-            else
-                save_config
-                echo -e "\e[32mGame ID saved successfully!\e[0m"
-                sleep 1
+                return
             fi
+            
+            local i=1
+            for pkg in $raw_pkgs; do
+                available_pkgs+=("$pkg")
+                echo -e "  \e[1;32m[$i]\e[0m $pkg"
+                ((i++))
+            done
+            
+            echo ""
+            echo -e "\e[36mEnter the numbers of the packages you want to monitor.\e[0m"
+            echo -e "\e[36mSeparate with spaces (e.g. '1 2 4'):\e[0m"
+            read -p "> " pkg_selections
+            
+            TARGET_PACKAGES=()
+            for sel in $pkg_selections; do
+                local idx=$((sel - 1))
+                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+                fi
+            done
+            
+            if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
+                echo -e "\e[31mNo valid packages selected. Aborting config creation.\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            # Step 2: Game ID
+            echo ""
+            read -p "Enter Target Game ID (Ex: 9587807821): " GAME_ID
+            
+            # Step 3: Intentional Crash Timer
+            echo ""
+            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes (e.g. 30).\e[0m"
+            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
+            read -p "> " timer_input
+            
+            if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
+                INTENTIONAL_CRASH_TIMER=0
+            else
+                # Extract numbers only
+                local clean_num=$(echo "$timer_input" | tr -cd '0-9')
+                if [[ -n "$clean_num" && "$clean_num" -ge 10 ]]; then
+                    INTENTIONAL_CRASH_TIMER=$clean_num
+                else
+                    echo -e "\e[33mInvalid or too short. Disabling intentional crash.\e[0m"
+                    INTENTIONAL_CRASH_TIMER=0
+                fi
+            fi
+            
+            # Step 4: Webhook
+            echo ""
+            echo -e "\e[36mEnter Discord Webhook URL for Analytics (Leave blank to disable):\e[0m"
+            read -p "> " TARGET_WEBHOOK
+            
+            # Step 5: Save Name
+            echo ""
+            read -p "Enter a name for this Config (e.g., Farm_1): " conf_name
+            if [[ -z "$conf_name" ]]; then conf_name="Default_Config"; fi
+            
+            # Sanitize name
+            conf_name=${conf_name// /_}
+            CURRENT_CONFIG="$CONFIG_DIR/$conf_name.conf"
+            
+            save_config
+            echo -e "\e[32mConfig '$conf_name' successfully saved and loaded!\e[0m"
+            sleep 2
             ;;
         3)
             echo -e "\e[36mExiting. Goodbye!\e[0m"
@@ -262,14 +476,24 @@ show_menu() {
 # --- Main Control Flow ---
 
 check_root
-load_config
+load_hwid
 verify_platoboost_key
-show_menu
+# The Platoboost function might recurse if key is invalid, so once returned we save
+save_hwid
+
+# Loop until a config is loaded
+while [[ -z "$CURRENT_CONFIG" ]]; do
+    show_menu
+done
 
 clear
-echo -e "\e[1;34m======================================\e[0m"
-echo -e "\e[1;37m        Monitor is Running...         \e[0m"
-echo -e "\e[1;34m======================================\e[0m"
+echo -e "\e[1;35m  ____      _     _               \e[0m"
+echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
+echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
+echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
+echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
+echo -e "\e[1;36m       S Y S T E M   A C T I V E  \e[0m"
+echo -e "\e[1;30m==========================================\e[0m"
 echo -e "Game ID locked: \e[1;33m$GAME_ID\e[0m"
 echo -e "Type \e[1;31mStop\e[0m at any time to pause."
 echo ""
@@ -308,9 +532,13 @@ while true; do
                 
                 # Redraw the monitor UI after returning from the menu
                 clear
-                echo -e "\e[1;34m======================================\e[0m"
-                echo -e "\e[1;37m        Monitor is Running...         \e[0m"
-                echo -e "\e[1;34m======================================\e[0m"
+                echo -e "\e[1;35m  ____      _     _               \e[0m"
+                echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
+                echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
+                echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
+                echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
+                echo -e "\e[1;36m       S Y S T E M   A C T I V E  \e[0m"
+                echo -e "\e[1;30m==========================================\e[0m"
                 echo -e "Game ID locked: \e[1;33m$GAME_ID\e[0m"
                 echo -e "Type \e[1;31mStop\e[0m at any time to pause."
                 echo ""
@@ -336,16 +564,47 @@ while true; do
                     IS_RUNNING=1
                     START_TIME=$(date +%s)
                     LAST_LAUNCH_TIME=$(date +%s)
-                    print_msg "\e[32mSuccessfully connected to the game.\e[0m"
+                    LAST_WEBHOOK_TIME=$(date +%s)
+                    LAST_INTENTIONAL_CRASH=$(date +%s)
+                    print_msg "\e[32mSuccessfully connected to the games.\e[0m"
                 fi
             else
                 if [[ $IS_RUNNING -eq 1 ]]; then
                     echo ""
                     print_msg "\e[31mGame disconnected or closed. Reconnecting...\e[0m"
                     IS_RUNNING=0
+                    TOTAL_CRASHES=$((TOTAL_CRASHES + 1))
                 fi
                 launch_game
                 continue
+            fi
+            
+            # Continuous webhook firing log check
+            if [[ $IS_RUNNING -eq 1 && -n "$TARGET_WEBHOOK" ]]; then
+                local w_timestamp=$(date +%s)
+                # 600 Seconds = 10 Minutes
+                if [[ $((w_timestamp - LAST_WEBHOOK_TIME)) -ge 600 ]]; then
+                    print_msg "\e[36m[Logger] Taking 10-Minute Snapshot and posting to Discord...\e[0m"
+                    trigger_webhook & # Executed asynchronously so UI doesn't hang
+                    LAST_WEBHOOK_TIME=$w_timestamp
+                fi
+            fi
+            
+            # Intentional Crash Manager Loop 
+            if [[ $IS_RUNNING -eq 1 && $INTENTIONAL_CRASH_TIMER -gt 0 ]]; then
+                local c_timestamp=$(date +%s)
+                # Parse config intentional timer mapping (Timer is in MINUTES, converting to seconds)
+                local required_seconds=$((INTENTIONAL_CRASH_TIMER * 60))
+                
+                if [[ $((c_timestamp - LAST_INTENTIONAL_CRASH)) -ge $required_seconds ]]; then
+                    echo ""
+                    print_msg "\e[35m[System] Intentional Restart Timer Reached ($INTENTIONAL_CRASH_TIMER mins)!\e[0m"
+                    print_msg "\e[33mForce clearing servers cleanly...\e[0m"
+                    
+                    IS_RUNNING=0
+                    launch_game
+                    continue
+                fi
             fi
             
             # Check if the game crashed but the Roblox app remained open (stuck on Main Menu)
@@ -368,6 +627,7 @@ while true; do
                     print_msg "\e[35m[!] Google window has been detected.\e[0m"
                     print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
                     su -c "input keyevent 4"
+                    TOTAL_GOOGLE_POPUPS=$((TOTAL_GOOGLE_POPUPS + 1))
                 fi
             fi
             
