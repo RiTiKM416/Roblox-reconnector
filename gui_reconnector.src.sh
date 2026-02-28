@@ -520,20 +520,6 @@ show_menu() {
             echo -e "\e[36mEnter Discord Webhook URL for Analytics (Leave blank to disable):\e[0m"
             read -p "> " TARGET_WEBHOOK
             
-            if [[ -n "$TARGET_WEBHOOK" ]]; then
-                echo ""
-                echo -e "\e[1;33m[Privacy Notice]\e[0m"
-                echo -e "An active webhook will capture background screenshots and device RAM/CPU metrics"
-                echo -e "every 10 minutes to populate your Discord dashboard telemetry."
-                read -p "Do you explicitly consent to sending this device data? (Y/N): " consent_input
-                
-                if [[ ! "${consent_input,,}" == "y" && ! "${consent_input,,}" == "yes" ]]; then
-                    echo -e "\e[31mConsent denied. Webhook Analytics disabled.\e[0m"
-                    TARGET_WEBHOOK=""
-                    sleep 2
-                fi
-            fi
-            
             # Step 5: Save Name
             echo ""
             read -p "Enter a name for this Config (e.g., Farm_1): " conf_name
