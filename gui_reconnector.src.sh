@@ -425,76 +425,39 @@ EOF
 # --- GUI Menu ---
 show_menu() {
     clear
-    echo -e "${GRAY}------------------ TERMUX RECONNECTOR - CONFIG MANAGER ------------------${NORMAL}\n"
+    echo -e "${GRAY}------------------ TERMUX RECONNECTOR - BY RiTiKM416 --------------------${NORMAL}\n"
     
-    echo -e "${MAG}  ____       _     _             ${NORMAL}"
-    echo -e "${MAG} |  _ \ ___ | |__ | | _____  __  ${NORMAL}"
-    echo -e "${BLUE} | |_) / _ \| '_ \| |/ _ \ \/ /  ${NORMAL}"
-    echo -e "${CYAN} |  _ < (_) | |_) | | (_) >  <   ${NORMAL}"
-    echo -e "${CYAN} |_| \_\___/|_.__/|_|\___/_/\_\  ${NORMAL}\n"
+    echo -e "${MAG}  ____  _____ _     _             ${NORMAL}"
+    echo -e "${MAG} |  _ \| ____| |__ | | _____  __  ${NORMAL}"
+    echo -e "${BLUE} | |_) |  _| | '_ \| |/ _ \ \/ /  ${NORMAL}"
+    echo -e "${CYAN} |  _ <| |___| |_) | | (_) >  <   ${NORMAL}"
+    echo -e "${CYAN} |_| \_\_____|_.__/|_|\___/_/\_\  ${NORMAL}\n"
     
-    echo -e "${BOLD}      C O N F I G   M A N A G E R ${NORMAL}"
+    echo -e "${BOLD}            H O M E   P A G E     ${NORMAL}"
     echo -e "${GRAY}==========================================${NORMAL}\n"
     
-    echo -e "  ${CYAN}[1]${NORMAL} Load existing Config"    
-    echo -e "  ${CYAN}[2]${NORMAL} Create a new Config"
-    echo -e "  ${CYAN}[3]${NORMAL} Edit configs (nano)"
-    echo -e "  ${CYAN}[4]${NORMAL} Exit Application\n"
+    echo -e "  ${CYAN}[1]${NORMAL} Start Reconnector"    
+    echo -e "  ${CYAN}[2]${NORMAL} Create a config"
+    echo -e "  ${CYAN}[3]${NORMAL} Load existing Config"    
+    echo -e "  ${CYAN}[4]${NORMAL} Edit or Delete Config"
+    echo -e "  ${CYAN}[5]${NORMAL} Select all available Roblox"
+    echo -e "  ${CYAN}[6]${NORMAL} Setup Discord Webhook"
+    echo -e "  ${CYAN}[7]${NORMAL} Logout Roblox"
+    echo -e "  ${CYAN}[8]${NORMAL} Exit Application\n"
     
     echo -e "${GRAY}==========================================${NORMAL}\n"
     
-    read -p "Select an option (1-4): " menu_choice
+    read -p "to Select an option : " menu_choice
     
     case $menu_choice in
         1)
-            # List available configs
-            clear
-            echo -e "\e[1;36mSaved Configurations:\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
-            
-            # Populate array of configs
-            local conf_files=()
-            local i=1
-            for f in "$CONFIG_DIR"/*.conf; do
-                if [[ -f "$f" ]]; then
-                    conf_files+=("$f")
-                    # Extract raw filename without directory and extension
-                    local basename=$(basename "$f" .conf)
-                    echo -e "  \e[1;33m[$i]\e[0m $basename"
-                    ((i++))
-                fi
-            done
-            
-            if [[ ${#conf_files[@]} -eq 0 ]]; then
-                echo -e "\e[31mNo configurations found.\e[0m"
-                sleep 2
-                show_menu
-                return
-            fi
-            
-            echo -e "  \e[1;31m[0]\e[0m Back"
-            echo ""
-            read -p "Select a config to load by number: " conf_choice
-            
-            if [[ "$conf_choice" == "0" ]]; then
-                show_menu
-                return
-            fi
-            
-            # Arrays are 0 indexed, user selection is 1-indexed
-            local array_index=$((conf_choice - 1))
-            if [[ $array_index -ge 0 && $array_index -lt ${#conf_files[@]} ]]; then
-                CURRENT_CONFIG="${conf_files[$array_index]}"
-                load_config
-                echo -e "\e[32mSuccessfully loaded config!\e[0m"
-                sleep 1
-            else
-                echo -e "\e[31mInvalid selection.\e[0m"
-                sleep 2
-                show_menu
-            fi
+            # 1. Start Reconnector
+            echo -e "\e[32mStarting Reconnector...\e[0m"
+            sleep 1
+            break
             ;;
         2)
+            # 2. Create a config
             clear
             echo -e "\e[1;36mCreating New Configuration...\e[0m"
             echo -e "\e[1;30m--------------------------------------\e[0m"
@@ -503,9 +466,6 @@ show_menu() {
             echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local available_pkgs=()
             
-            # Since 'pm' can cause -fstack-protector aborts on certain custom Android kernels,
-            # we will securely scan the raw /data/data directory for roblox installations.
-            # This is 100% foolproof on rooted devices and eliminates the crash.
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             
             if [[ -z "$raw_pkgs" ]]; then
@@ -555,7 +515,6 @@ show_menu() {
             if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                 INTENTIONAL_CRASH_TIMER=0
             else
-                # Extract numbers only
                 local clean_num=$(echo "$timer_input" | tr -cd '0-9')
                 if [[ -n "$clean_num" && "$clean_num" -ge 10 ]]; then
                     INTENTIONAL_CRASH_TIMER=$clean_num
@@ -575,20 +534,85 @@ show_menu() {
             read -p "Enter a name for this Config (e.g., Farm_1): " conf_name
             if [[ -z "$conf_name" ]]; then conf_name="Default_Config"; fi
             
-            # Sanitize name
             conf_name=${conf_name// /_}
             CURRENT_CONFIG="$CONFIG_DIR/$conf_name.conf"
             
             save_config
             echo -e "\e[32mConfig '$conf_name' successfully saved and loaded!\e[0m"
             sleep 2
+            show_menu
             ;;
         3)
-            ${EDITOR:-nano} "$CONFIG_DIR"
+            # 3. Load existing Config
+            clear
+            echo -e "\e[1;36mSaved Configurations:\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            local conf_files=()
+            local i=1
+            for f in "$CONFIG_DIR"/*.conf; do
+                if [[ -f "$f" ]]; then
+                    conf_files+=("$f")
+                    local basename=$(basename "$f" .conf)
+                    echo -e "  \e[1;33m[$i]\e[0m $basename"
+                    ((i++))
+                fi
+            done
+            
+            if [[ ${#conf_files[@]} -eq 0 ]]; then
+                echo -e "\e[31mNo configurations found.\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            echo -e "  \e[1;31m[0]\e[0m Back"
+            echo ""
+            read -p "Select a config to load by number: " conf_choice
+            
+            if [[ "$conf_choice" == "0" ]]; then
+                show_menu
+                return
+            fi
+            
+            local array_index=$((conf_choice - 1))
+            if [[ $array_index -ge 0 && $array_index -lt ${#conf_files[@]} ]]; then
+                CURRENT_CONFIG="${conf_files[$array_index]}"
+                load_config
+                echo -e "\e[32mSuccessfully loaded config!\e[0m"
+                sleep 1
+            else
+                echo -e "\e[31mInvalid selection.\e[0m"
+                sleep 2
+            fi
             show_menu
-            return
             ;;
         4)
+            # 4. Edit or Delete Config
+            echo -e "\e[33m[Feature Scaffold] Edit or Delete Config\e[0m"
+            sleep 1
+            show_menu
+            ;;
+        5)
+            # 5. Select all available Roblox
+            echo -e "\e[33m[Feature Scaffold] Select all available Roblox\e[0m"
+            sleep 1
+            show_menu
+            ;;
+        6)
+            # 6. Setup Discord Webhook
+            echo -e "\e[33m[Feature Scaffold] Setup Discord Webhook\e[0m"
+            sleep 1
+            show_menu
+            ;;
+        7)
+            # 7. Logout Roblox
+            echo -e "\e[33m[Feature Scaffold] Logout Roblox\e[0m"
+            sleep 1
+            show_menu
+            ;;
+        8)
+            # 8. Exit Application
             echo -e "\e[36mExiting. Goodbye!\e[0m"
             exit 0
             ;;
