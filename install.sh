@@ -13,13 +13,13 @@ echo "======================================"
 # --- Platoboost Authentication ---
 PROJECT_ID="21504"
 DISCORD_LINK="https://discord.gg/ZFjE9yqUNy"
-echo -e "\e[33mTo use this tool, you need a valid 24hr Access Key.\e[0m"
+echo -e "\e[33mTo use this tool, you need a valid Access Key.\e[0m"
 echo -e "\e[36mJoin our Discord to get your key: \e[1;32m$DISCORD_LINK\e[0m"
-echo -e "\e[36m(Go to the #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
+echo -e "\e[36m( Go to the \e[33m#get-key\e[36m channel and get a Valid Access key. )\e[0m"
 echo ""
 
 while true; do
-    read -p "Enter your Auth Key: " user_key
+    read -p "Enter your Access Key : " user_key
     
     # Simple check for empty string
     if [[ -z "$user_key" ]]; then

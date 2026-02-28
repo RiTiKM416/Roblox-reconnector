@@ -137,9 +137,9 @@ verify_platoboost_key() {
     if [[ $needs_new_key -eq 1 ]]; then
         echo -e "\e[31mNo valid authentication key found.\e[0m"
         echo -e "\e[33mGet your daily key on our Discord: \e[1;32m$DISCORD_LINK\e[0m"
-        echo -e "\e[36m(Go to #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
+        echo -e "\e[36m( Go to the \e[33m#get-key\e[36m channel and get a Valid Access key. )\e[0m"
         echo ""
-        read -p "Enter your Auth Key: " PLATOBOOST_KEY
+        read -p "Enter your Access Key : " PLATOBOOST_KEY
     fi
     
     show_progress "Authenticating Device HWID..."
@@ -189,7 +189,7 @@ verify_platoboost_key() {
         echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
         echo ""
         KEY_EXPIRATION=""
-        read -p "Enter your new Auth Key: " PLATOBOOST_KEY
+        read -p "Enter your new Access Key : " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
     fi
 }
