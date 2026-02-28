@@ -60,10 +60,21 @@ box() {
 
 show_active_monitor() {
   clear
-  box "SYSTEM ACTIVE MONITOR" 76
-  echo -e "\nGame ID locked: ${CYAN}${GAME_ID:-none}${NORMAL}\n"
+  echo -e "${GRAY}------------------ TERMUX RECONNECTOR - SYSTEM ACTIVE -------------------${NORMAL}\n"
+  
+  echo -e "${MAG}  ____       _     _             ${NORMAL}"
+  echo -e "${MAG} |  _ \ ___ | |__ | | _____  __  ${NORMAL}"
+  echo -e "${BLUE} | |_) / _ \| '_ \| |/ _ \ \/ /  ${NORMAL}"
+  echo -e "${CYAN} |  _ < (_) | |_) | | (_) >  <   ${NORMAL}"
+  echo -e "${CYAN} |_| \_\___/|_.__/|_|\___/_/\_\  ${NORMAL}\n"
+  
+  echo -e "${BOLD}      S Y S T E M   A C T I V E ${NORMAL}"
+  echo -e "${GRAY}==========================================${NORMAL}\n"
+  
+  echo -e "Game ID locked: ${CYAN}${GAME_ID:-none}${NORMAL}\n"
   echo -e "Type '${RED}Stop${NORMAL}' at any time to pause the monitor.\n"
   echo -e "${GRAY}$(date) — Press Ctrl+C to quit monitor.${NORMAL}\n"
+  echo -e "${GRAY}==========================================${NORMAL}\n"
 }
 
 show_progress() {
@@ -414,13 +425,25 @@ EOF
 # --- GUI Menu ---
 show_menu() {
     clear
-    box "TERMUX RECONNECTOR — CONFIG MANAGER" 76
+    echo -e "${GRAY}------------------ TERMUX RECONNECTOR - CONFIG MANAGER ------------------${NORMAL}\n"
     
-    echo -e "\n  ${BOLD}1)${NORMAL} Load existing config"
-    echo -e "  ${BOLD}2)${NORMAL} Create a new config"
-    echo -e "  ${BOLD}3)${NORMAL} Exit Application\n"
+    echo -e "${MAG}  ____       _     _             ${NORMAL}"
+    echo -e "${MAG} |  _ \ ___ | |__ | | _____  __  ${NORMAL}"
+    echo -e "${BLUE} | |_) / _ \| '_ \| |/ _ \ \/ /  ${NORMAL}"
+    echo -e "${CYAN} |  _ < (_) | |_) | | (_) >  <   ${NORMAL}"
+    echo -e "${CYAN} |_| \_\___/|_.__/|_|\___/_/\_\  ${NORMAL}\n"
     
-    read -p "Select an option (1/2/3): " menu_choice
+    echo -e "${BOLD}      C O N F I G   M A N A G E R ${NORMAL}"
+    echo -e "${GRAY}==========================================${NORMAL}\n"
+    
+    echo -e "  ${CYAN}[1]${NORMAL} Load existing Config"    
+    echo -e "  ${CYAN}[2]${NORMAL} Create a new Config"
+    echo -e "  ${CYAN}[3]${NORMAL} Edit configs (nano)"
+    echo -e "  ${CYAN}[4]${NORMAL} Exit Application\n"
+    
+    echo -e "${GRAY}==========================================${NORMAL}\n"
+    
+    read -p "Select an option (1-4): " menu_choice
     
     case $menu_choice in
         1)
@@ -561,6 +584,11 @@ show_menu() {
             sleep 2
             ;;
         3)
+            ${EDITOR:-nano} "$CONFIG_DIR"
+            show_menu
+            return
+            ;;
+        4)
             echo -e "\e[36mExiting. Goodbye!\e[0m"
             exit 0
             ;;
