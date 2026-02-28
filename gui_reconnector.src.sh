@@ -73,12 +73,15 @@ verify_platoboost_key() {
                 needs_new_key=1
                 PLATOBOOST_KEY=""
             else
-                local rem_h=$((remaining / 3600))
+                local rem_d=$((remaining / 86400))
+                local rem_h=$(((remaining % 86400) / 3600))
                 local rem_m=$(((remaining % 3600) / 60))
-                # Pad single digits to ensure 05h 02m look.
-                printf "\e[32m[+] Cached Key found! Time remaining: \e[1;33m%02dh %02dm\e[0m\n" $rem_h $rem_m
-            fi
-        else
+                
+                if [[ $rem_d -gt 0 ]]; then
+                    printf "\e[32m[+] Cached Premium Key found! Time remaining: \e[1;33m%02dd %02dh %02dm\e[0m\n" $rem_d $rem_h $rem_m
+                else
+                    printf "\e[32m[+] Cached Daily Key found! Time remaining: \e[1;33m%02dh %02dm\e[0m\n" $rem_h $rem_m
+                fi
             needs_new_key=1
         fi
     else
@@ -110,7 +113,11 @@ verify_platoboost_key() {
         # Determine and set Expiration if it is a new valid key that doesn't have an expiration yet
         if [[ "$PLATOBOOST_KEY" == ADMIN_GEN_* ]]; then
             KEY_EXPIRATION="LIFETIME"
+        elif [[ "$PLATOBOOST_KEY" == PREMIUM_KEY_* && -z "$KEY_EXPIRATION" ]]; then
+            # 30 Days (2,592,000 Seconds)
+            KEY_EXPIRATION=$(( $(date +%s) + 2592000 ))
         elif [[ -z "$KEY_EXPIRATION" || $needs_new_key -eq 1 ]]; then
+            # 24 Hours (86,400 Seconds)
             KEY_EXPIRATION=$(( $(date +%s) + 86400 ))
         fi
         
