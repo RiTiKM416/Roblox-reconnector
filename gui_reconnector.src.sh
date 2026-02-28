@@ -387,22 +387,40 @@ show_menu() {
             echo -e "\e[1;30m--------------------------------------\e[0m"
             
             # Step 1: Detect Packages
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            echo -e "\e[33mScanning Device for Installed Packages...\e[0m"
             local available_pkgs=()
-            # We use root to reliably list all packages, then grep for roblox
-            local raw_pkgs=$(su -c "pm list packages" | grep -i "roblox" | awk -F':' '{print $2}' | tr -d '\r')
+            
+            # Use 'env' to clear Termux LD_LIBRARY_PATH which causes the -fstack-protector corruption.
+            # We also grep for 3rd party apps only (-3) so we don't flood the terminal with 400 system apps
+            local raw_pkgs=$(su -c "env LD_LIBRARY_PATH=/system/lib64:/system/lib pm list packages -3" 2>/dev/null | awk -F':' '{print $2}' | tr -d '\r')
+            
+            # Robust fallback: if 'pm' still crashes, parse /data/data directly
+            if [[ -z "$raw_pkgs" ]]; then
+                raw_pkgs=$(su -c "ls /data/data" 2>/dev/null | tr -d '\r')
+            fi
             
             if [[ -z "$raw_pkgs" ]]; then
-                echo -e "\e[31mNo Roblox packages detected on this device!\e[0m"
+                echo -e "\e[31mFailed to read packages. Did you grant root access?\e[0m"
                 sleep 2
                 show_menu
                 return
             fi
             
+            # Sort logic: Roblox packages at the top, rest at the bottom
+            local roblox_pkgs=$(echo "$raw_pkgs" | grep -i "roblox")
+            local other_pkgs=$(echo "$raw_pkgs" | grep -vi "roblox")
+            
+            # Combine without empty lines
+            local sorted_pkgs=$(echo -e "${roblox_pkgs}\n${other_pkgs}" | grep -v '^\s*$')
+            
             local i=1
-            for pkg in $raw_pkgs; do
+            for pkg in $sorted_pkgs; do
                 available_pkgs+=("$pkg")
-                echo -e "  \e[1;32m[$i]\e[0m $pkg"
+                if [[ "${pkg,,}" == *"roblox"* ]]; then
+                    echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
+                else
+                    echo -e "  \e[1;36m[$i]\e[0m $pkg"
+                fi
                 ((i++))
             done
             
