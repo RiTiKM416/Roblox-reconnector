@@ -1,6 +1,18 @@
 {
-    "totalKeysGenerated": 1,
+    "totalKeysGenerated": 3,
     "recentKeys": [
+        {
+            "discordId": "Web Console Admin",
+            "time": "6:28:48 PM",
+            "timeMs": 1772283528179,
+            "link": "https://auth.platorelay.com/a?d=ddOM4Z6uHp4wZ2fEvf96YEkTLmMBPH78h3q8IQg8dLAnzUK5xLl0gNX6kcfsM4tg8AsKPz7kHdHlwc4C9tGlDlJS2k7CJrMQTK65bFMnp8LHpJOmaYLal4QTNEJDBhEKrsOUyXoHDBN6xiQdeFExJyWMgqE3xbDCpmVMpZagOxQPaXqJZ6EQgNUhb9lv9ih4HG5yodtwGBssPWDu4GXPKp61dMFN5OKkfsJA4eYyDFZRTciuAr6h0GCXPKEbSPpvluSXNLSUo1ga1ZMOEsaMExw4EptLFv0dpexi5QVWZ0fHj9co4dpMcHMZjg2aKS5e4hKYO6riu8Kjvm4vTBhvZMG5oVpIxKXlalMOykrGpF8U0r3UWIhsqFl4LmrUg9NRwet4KusqPNSoTAJKkxu90EbRTt"
+        },
+        {
+            "discordId": "ritikm416",
+            "time": "5:41:28 PM",
+            "timeMs": 1772280688102,
+            "link": "https://auth.platorelay.com/a?d=24IYW4ala7HOFlx0kqzJzu9gsZBRV4oVHjSlXF7G6z7M4pbMYylbcvZofTyum7TmM7rSL7VhUnS0sfDIVzq4miqA38MruRROzTMgT0Hm8Dm4le4VmnK5jhBVNXLK9Bza618KvCMqBrcBH0TF2HogApt3rRx6Yd0txLaFaSDUuIjjFfYWm3a4c4URjylI6l3LvLDcpvwrZFHulM3tQX41NH3jqho3ivkUbh0JJmSAwwbYJvgjTR5zbAk5nLedYGdDtaFnYEzYgsB04APbdZdJset78So5NJgcimMM8J5zcuYOOBcdopgw92hQ4HT1jJF1cuPluRgnNh4hairtDzBwWGUyev5X6naHKBiKAfV74zDkevpHzWt8oloVqlHstAKCET7yt7USDDH5zZZjMzokfOKSr17fmM"
+        },
         {
             "discordId": "ritikm416",
             "time": "1:25:53 AM",
@@ -8,5 +20,20 @@
             "link": "https://auth.platorelay.com/a?d=ktPUVMxUt0jPPCMyb9Xcth0clcoHRN5erdnRcjGrMl3lfznI7czY5yDtK7euM1zGFvQA7RzNr0qYHS6R8BRimfcwlBqm33Jpheux1Bihj5IUGXYD3J11Sk4nWHVFRUJ1RzwfbqwIUSkeOjCSMiQlfsvJ6G6ejBSIHUB83iMb84FpGGiEZOtT3toFtaQNufkw0fo4aCkg0BWftsREdiMSHb5hb2C0M26o3oWUKNfiwMMydEsF0k1avabLPxSZmkYV0R731EPQL6JCkjSAQvLnBWm8ZKMEbvWVx7wx6hUNHu0pSLgEI92OlI5wKYEYbPderyLErYeaJKsVmPLYreBCQu822YspAA7Ok99y3GFTLPSFnYeN7sEuXWtE3qcvzBhNKB1p0jQeMvr6o6Bw1o5zX0WQhoaWJt"
         }
     ],
-    "backupKeys": []
+    "backupKeys": [
+        {
+            "discordId": "Web Console Admin",
+            "time": "6:39:41 PM",
+            "timeMs": 1772284181776,
+            "key": "ADMIN_GEN_Y9GI75GLIJX3P9O3",
+            "hwid": "BYPASS_HWID_NOT_REQUIRED"
+        },
+        {
+            "discordId": "user123",
+            "time": "5:32:40 PM",
+            "timeMs": 1772280160260,
+            "key": "test_key_123",
+            "hwid": "test_hwid"
+        }
+    ]
 }

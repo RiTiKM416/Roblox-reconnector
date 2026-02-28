@@ -4,6 +4,21 @@ const express = require('express');
 const auth = require('basic-auth');
 const fs = require('fs');
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+const crypto = require('crypto');
+// --- Database Initialization ---
+const dbPath = path.join(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath);
+
+db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hwid TEXT UNIQUE,
+        discord_tag TEXT,
+        key_used TEXT,
+        last_updated INTEGER
+    )`);
+});
 
 // --- Environment Variables ---
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -12,14 +27,14 @@ const PLATOBOOST_PROJECT = '21504';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
 const PORT = process.env.PORT || 3000;
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'RECONNECTOR_V1_SECRET_998877';
 
 // --- State Database (Persistent) ---
 const statsPath = path.join(__dirname, 'stats.json');
 let appState = {
     botOnline: false,
     totalKeysGenerated: 0,
-    recentKeys: [], // { discordId, time, timeMs, link }
-    backupKeys: [] // { discordId, time, timeMs, key, hwid, link }
+    recentKeys: [] // { discordId, time, timeMs, link }
 };
 
 try {
@@ -28,7 +43,6 @@ try {
         const parsed = JSON.parse(rawStats);
         appState.totalKeysGenerated = parsed.totalKeysGenerated || 0;
         appState.recentKeys = parsed.recentKeys || [];
-        appState.backupKeys = parsed.backupKeys || [];
     }
 } catch (e) {
     console.error('Failed to load stats', e);
@@ -37,8 +51,7 @@ try {
 const saveStats = () => {
     fs.writeFileSync(statsPath, JSON.stringify({
         totalKeysGenerated: appState.totalKeysGenerated,
-        recentKeys: appState.recentKeys,
-        backupKeys: appState.backupKeys
+        recentKeys: appState.recentKeys
     }, null, 4));
 };
 
@@ -73,6 +86,9 @@ app.use(express.static('public'));
 
 // Basic Auth Middleware
 const authMiddleware = (req, res, next) => {
+    // Skip auth for the backup webhook
+    if (req.path === '/api/backup/update') return next();
+
     const user = auth(req);
     if (!user || user.name !== ADMIN_USER || user.pass !== ADMIN_PASS) {
         res.set('WWW-Authenticate', 'Basic realm="Reconnector Admin"');
@@ -91,15 +107,25 @@ app.get('/', (req, res) => {
     let expiredCount = appState.totalKeysGenerated - activeCount;
     if (expiredCount < 0) expiredCount = 0;
 
-    res.render('index', {
-        state: appState,
-        activeCount: activeCount,
-        expiredCount: expiredCount,
-        guildCount: client.isReady() ? client.guilds.cache.size : 0,
-        userTag: client.isReady() ? client.user.tag : 'Offline',
-        embedConfig: embedConfig,
-        backupKeys: appState.backupKeys,
-        alert: req.query.alert ? JSON.parse(decodeURIComponent(req.query.alert)) : null
+    db.all("SELECT * FROM sessions ORDER BY last_updated DESC LIMIT 100", (err, rows) => {
+        const backupKeys = (rows || []).map(r => ({
+            discordId: r.discord_tag,
+            time: new Date(r.last_updated).toLocaleTimeString(),
+            timeMs: r.last_updated,
+            key: r.key_used,
+            hwid: r.hwid
+        }));
+
+        res.render('index', {
+            state: appState,
+            activeCount: activeCount,
+            expiredCount: expiredCount,
+            guildCount: client.isReady() ? client.guilds.cache.size : 0,
+            userTag: client.isReady() ? client.user.tag : 'Offline',
+            embedConfig: embedConfig,
+            backupKeys: backupKeys,
+            alert: req.query.alert ? JSON.parse(decodeURIComponent(req.query.alert)) : null
+        });
     });
 });
 
@@ -121,23 +147,37 @@ const redirectAlert = (res, type, message) => {
 // --- Webhook: Backup Updater from Bash Script ---
 // Note: This endpoint does NOT use basic AUTH so the Bash script can ping it anonymously.
 app.post('/api/backup/update', express.json(), express.urlencoded({ extended: true }), (req, res) => {
+    const signature = req.headers['x-signature'];
+    if (!signature) return res.status(401).json({ success: false, message: 'Missing Signature Header' });
+
     const { key, device_id, discord_id } = req.body;
     if (!key || !device_id) return res.status(400).json({ success: false, message: 'Missing key or device_id' });
 
-    // Check if key already backed up to prevent duplicates
-    if (!appState.backupKeys.find(k => k.key === key)) {
-        appState.backupKeys.unshift({
-            discordId: discord_id || 'Termux User',
-            time: new Date().toLocaleTimeString(),
-            timeMs: Date.now(),
-            key: key,
-            hwid: device_id
-        });
-        if (appState.backupKeys.length > 500) appState.backupKeys.pop();
-        saveStats();
+    // Validate Signature: We reconstruct the exact payload string the bash script sends
+    // The bash script sends: {"device_id":"HWID","key":"KEY","discord_id":"DISCORD_TAG"}
+    const payloadString = `{"device_id":"${device_id}","key":"${key}","discord_id":"${discord_id || ''}"}`;
+    const expectedSig = crypto.createHmac('sha256', CLIENT_SECRET).update(payloadString).digest('base64');
+
+    if (signature !== expectedSig) {
+        console.warn(`[Security] Rejected invalid HMAC signature for HWID: ${device_id}`);
+        return res.status(403).json({ success: false, message: 'Invalid Cryptographic Signature' });
     }
 
-    return res.json({ success: true, message: 'Backup Synchronized Successfully' });
+    const tag = discord_id || 'Termux User';
+    const now = Date.now();
+
+    db.run(`INSERT INTO sessions (hwid, discord_tag, key_used, last_updated) 
+            VALUES (?, ?, ?, ?) 
+            ON CONFLICT(hwid) DO UPDATE SET 
+                discord_tag = excluded.discord_tag,
+                key_used = excluded.key_used,
+                last_updated = excluded.last_updated`,
+        [device_id, tag, key, now],
+        (err) => {
+            if (err) console.error("Database insert error:", err);
+            return res.json({ success: true, message: 'Backup Synchronized Successfully' });
+        }
+    );
 });
 
 // --- Custom Embed Form Handler ---
@@ -158,6 +198,24 @@ app.post('/api/admin/update-embed', express.urlencoded({ extended: true }), (req
     } catch (e) {
         redirectAlert(res, 'error', 'Failed to save Embed configuration.');
     }
+});
+
+// --- Instant Admin Key Generator (No Platoboost Required) ---
+app.post('/api/admin/create-instant-key', (req, res) => {
+    // Generate a random 16-character alphanumeric key
+    const rawKey = `ADMIN_GEN_${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`.toUpperCase();
+
+    const tag = 'Web Console Admin';
+    const hwid = 'BYPASS_HWID_' + Math.random().toString(36).substring(2, 8);
+    const now = Date.now();
+
+    db.run(`INSERT INTO sessions (hwid, discord_tag, key_used, last_updated) VALUES (?, ?, ?, ?)`,
+        [hwid, tag, rawKey, now],
+        (err) => {
+            if (err) console.error("Database insert error:", err);
+            redirectAlert(res, 'success', `Instant Admin Key Generated: <code style="padding:4px 8px; background:rgba(0,0,0,0.5); user-select:all; cursor:pointer;" onclick="navigator.clipboard.writeText('${rawKey}')">${rawKey}</code> (Click to copy)`);
+        }
+    );
 });
 
 // --- Advanced Admin Key Management API ---
@@ -199,6 +257,16 @@ app.post('/api/admin/delete-key', express.urlencoded({ extended: true }), async 
     if (!key) return redirectAlert(res, 'error', 'You must provide a key to delete.');
 
     try {
+        // Drop from SQLite immediately
+        db.run(`DELETE FROM sessions WHERE key_used = ?`, [key], (err) => {
+            if (err) console.error("Database delete error:", err);
+        });
+
+        // Offline Admin keys bypass the API
+        if (key.startsWith('ADMIN_GEN_')) {
+            return redirectAlert(res, 'success', `Admin Key **${key}** DELETED from local database.`);
+        }
+
         const response = await fetch(`https://api.platoboost.net/public/whitelist/${PLATOBOOST_PROJECT}?key=${key}`, {
             method: 'DELETE',
             headers: {
@@ -223,6 +291,15 @@ app.post('/api/admin/reset-hwid', express.urlencoded({ extended: true }), async 
     if (!key) return redirectAlert(res, 'error', 'You must provide a key to reset.');
 
     try {
+        // Also remove from SQLite because the HWID is reset
+        db.run(`DELETE FROM sessions WHERE key_used = ?`, [key], (err) => {
+            if (err) console.error("Database delete error:", err);
+        });
+
+        if (key.startsWith('ADMIN_GEN_')) {
+            return redirectAlert(res, 'success', `Admin Key **${key}** unbound from local HWID.`);
+        }
+
         // To forcibly reset a key as an admin
         // Note: Reset requires the identifier that generated it. As admin, we may not know it. 
         // We will attempt to use the developer secret on the reset endpoint.

@@ -125,9 +125,14 @@ verify_platoboost_key() {
         
         # Backup Updater Sync
         if [[ -n "$WEBHOOK_URL" ]]; then
+            local secret="RECONNECTOR_V1_SECRET_998877"
+            local payload="{\"device_id\":\"$DEVICE_ID\",\"key\":\"$PLATOBOOST_KEY\",\"discord_id\":\"$DISCORD_ID\"}"
+            local signature=$(echo -n "$payload" | openssl dgst -sha256 -hmac "$secret" -binary | base64)
+            
             curl -s "$WEBHOOK_URL/api/backup/update" \
                  -X POST -H "Content-Type: application/json" \
-                 -d "{\"key\": \"$PLATOBOOST_KEY\", \"device_id\": \"$DEVICE_ID\"}" > /dev/null &
+                 -H "X-Signature: $signature" \
+                 -d "$payload" > /dev/null &
         fi
         
         # If CURRENT_CONFIG is already populated, resave it. Otherwise, it will save when they reach the menu.
@@ -250,11 +255,25 @@ launch_game() {
         
         print_msg "\e[32mSuccessfully connected to the game.\e[0m"
         IS_RUNNING=1
+        RETRY_COUNT=0
         START_TIME=$(date +%s)
         LAST_LAUNCH_TIME=$(date +%s)
     else
-        print_msg "\e[31mFailed to open Roblox. Retrying...\e[0m"
         IS_RUNNING=0
+        if [[ -z "$RETRY_COUNT" ]]; then RETRY_COUNT=0; fi
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        
+        if [[ $RETRY_COUNT -ge 6 ]]; then
+            echo ""
+            print_msg "\e[31m[CRITICAL FAILURE] Roblox failed to launch 6 times consecutively.\e[0m"
+            print_msg "\e[33mPausing auto-reconnector to prevent CPU thermal overload.\e[0m"
+            print_msg "\e[36mType 'resume' if you want to force try again.\e[0m"
+            IS_PAUSED=1
+        else
+            local backoff=$(( (2 ** RETRY_COUNT) * 5 ))
+            print_msg "\e[31mProcess drop detected. Thermal Backoff: Retrying ($RETRY_COUNT/6) in $backoff seconds...\e[0m"
+            sleep $backoff
+        fi
     fi
 }
 
@@ -500,6 +519,20 @@ show_menu() {
             echo ""
             echo -e "\e[36mEnter Discord Webhook URL for Analytics (Leave blank to disable):\e[0m"
             read -p "> " TARGET_WEBHOOK
+            
+            if [[ -n "$TARGET_WEBHOOK" ]]; then
+                echo ""
+                echo -e "\e[1;33m[Privacy Notice]\e[0m"
+                echo -e "An active webhook will capture background screenshots and device RAM/CPU metrics"
+                echo -e "every 10 minutes to populate your Discord dashboard telemetry."
+                read -p "Do you explicitly consent to sending this device data? (Y/N): " consent_input
+                
+                if [[ ! "${consent_input,,}" == "y" && ! "${consent_input,,}" == "yes" ]]; then
+                    echo -e "\e[31mConsent denied. Webhook Analytics disabled.\e[0m"
+                    TARGET_WEBHOOK=""
+                    sleep 2
+                fi
+            fi
             
             # Step 5: Save Name
             echo ""

@@ -449,7 +449,7 @@
 
         <% if (typeof alert !=='undefined' && alert) { %>
             <div class="notification <%= alert.type === 'success' ? 'notify-success' : 'notify-error' %>">
-                <%= alert.message %>
+                <%- alert.message %>
             </div>
             <% } %>
 
@@ -560,6 +560,17 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <h4>Generate Instant Key</h4>
+                                <p>Generate a raw Admin Key string to paste directly into Termux (Bypasses Platoboost).
+                                </p>
+                                <form action="/api/admin/create-instant-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+                                    <button type="submit" class="btn btn-small"
+                                        style="background: var(--success);">Generate Admin Key</button>
+                                </form>
+                            </div>
+
+                            <div class="form-group">
+                                <h4>Generate Bypass Link</h4>
                                 <p>Bypass Discord and get a direct Platorelay link instantly.</p>
                                 <form action="/api/admin/create-key" method="POST"
                                     style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
