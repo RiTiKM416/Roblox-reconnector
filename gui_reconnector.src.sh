@@ -451,10 +451,70 @@ show_menu() {
     
     case $menu_choice in
         1)
-            # 1. Start Reconnector
-            echo -e "\e[32mStarting Reconnector...\e[0m"
-            sleep 1
-            break
+            # 1. Start Reconnector (Quick Start)
+            clear
+            echo -e "\e[1;36mStarting Quick Reconnector...\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            local available_pkgs=()
+            local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
+            
+            if [[ -z "$raw_pkgs" ]]; then
+                echo -e "\e[31mNo Roblox packages detected!\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            local i=1
+            for pkg in $raw_pkgs; do
+                available_pkgs+=("$pkg")
+                echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
+                ((i++))
+            done
+            
+            echo ""
+            echo -e "\e[36mEnter the numbers of the packages you want to monitor (e.g. '1 2'):\e[0m"
+            read -p "> " pkg_selections
+            
+            TARGET_PACKAGES=()
+            for sel in $pkg_selections; do
+                local idx=$((sel - 1))
+                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+                fi
+            done
+            
+            if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
+                echo -e "\e[31mNo valid packages selected. Returning to menu.\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            echo ""
+            read -p "Enter Target Game ID (Ex: 9587807821): " GAME_ID
+            
+            echo ""
+            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes.\e[0m"
+            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
+            read -p "> " timer_input
+            
+            if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
+                INTENTIONAL_CRASH_TIMER=0
+            else
+                local clean_num=$(echo "$timer_input" | tr -cd '0-9')
+                if [[ -n "$clean_num" && "$clean_num" -ge 10 ]]; then
+                    INTENTIONAL_CRASH_TIMER=$clean_num
+                else
+                    echo -e "\e[33mInvalid or too short. Disabling intentional crash.\e[0m"
+                    INTENTIONAL_CRASH_TIMER=0
+                fi
+            fi
+            
+            CURRENT_CONFIG="QUICK_START"
+            return
             ;;
         2)
             # 2. Create a config
@@ -588,27 +648,267 @@ show_menu() {
             show_menu
             ;;
         4)
-            # 4. Edit or Delete Config
-            echo -e "\e[33m[Feature Scaffold] Edit or Delete Config\e[0m"
-            sleep 1
+            # 4. Delete Config
+            clear
+            echo -e "\e[1;31mDelete Configuration\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            local conf_files=()
+            local i=1
+            for f in "$CONFIG_DIR"/*.conf; do
+                if [[ -f "$f" ]]; then
+                    conf_files+=("$f")
+                    local basename=$(basename "$f" .conf)
+                    echo -e "  \e[1;33m[$i]\e[0m $basename"
+                    ((i++))
+                fi
+            done
+            
+            if [[ ${#conf_files[@]} -eq 0 ]]; then
+                echo -e "\e[31mThere are no config available. Redirecting to Home Page.\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            echo -e "  \e[1;31m[0]\e[0m Cancel & Go Back"
+            echo ""
+            read -p "Select The Config : " conf_choice
+            
+            if [[ "$conf_choice" == "0" ]]; then
+                show_menu
+                return
+            fi
+            
+            local array_index=$((conf_choice - 1))
+            if [[ $array_index -ge 0 && $array_index -lt ${#conf_files[@]} ]]; then
+                local del_target="${conf_files[$array_index]}"
+                local basename=$(basename "$del_target" .conf)
+                echo ""
+                echo -e "\e[41m\e[1;37m WARNING: Config '$basename' will be deleted permanently! \e[0m"
+                read -p "Press [Enter] to delete or [Ctrl+C] to abort..."
+                rm -f "$del_target"
+                echo -e "\e[32mConfig deleted successfully!\e[0m"
+                sleep 2
+            else
+                echo -e "\e[31mInvalid selection.\e[0m"
+                sleep 2
+            fi
             show_menu
             ;;
         5)
             # 5. Select all available Roblox
-            echo -e "\e[33m[Feature Scaffold] Select all available Roblox\e[0m"
-            sleep 1
-            show_menu
+            clear
+            echo -e "\e[1;36mSelect all available Roblox\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
+            if [[ -z "$raw_pkgs" ]]; then
+                echo -e "\e[31mNo Roblox packages detected!\e[0m"
+                sleep 2
+                show_menu
+                return
+            fi
+            
+            TARGET_PACKAGES=()
+            local i=0
+            for pkg in $raw_pkgs; do
+                TARGET_PACKAGES+=("$pkg")
+                echo -e "  \e[1;32m[✓]\e[0m \e[1;33m$pkg\e[0m"
+                ((i++))
+            done
+            echo -e "\n\e[32mAll $i packages selected.\e[0m\n"
+            
+            # Sub-menu Loop
+            while true; do
+                echo -e "\e[1;30m--------------------------------------\e[0m"
+                echo -e "  \e[36m1.\e[0m Enter a Game ID"
+                echo -e "  \e[36m2.\e[0m Launch Selected Roblox"
+                echo -e "  \e[36m3.\e[0m Logout all Accounts"
+                echo -e "  \e[36m4.\e[0m Clear Selected Roblox's Cache"
+                echo -e "  \e[36m5.\e[0m Clear Selected Roblox's Data"
+                echo -e "  \e[36m6.\e[0m Uninstall Selected Roblox"
+                echo -e "  \e[36m7.\e[0m Go to Menu\n"
+                
+                read -p "Select an action: " rblx_action
+                
+                case $rblx_action in
+                    1)
+                        read -p "Enter Target Game ID: " GAME_ID
+                        read -p "Enter Reconnect Timer (mins, or 'none'): " timer_input
+                        if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
+                            INTENTIONAL_CRASH_TIMER=0
+                        else
+                            local clean_num=$(echo "$timer_input" | tr -cd '0-9')
+                            if [[ -n "$clean_num" && "$clean_num" -ge 10 ]]; then
+                                INTENTIONAL_CRASH_TIMER=$clean_num
+                            else
+                                INTENTIONAL_CRASH_TIMER=0
+                            fi
+                        fi
+                        echo -e "\e[32mSettings applied. Launching all packages sequentially...\e[0m"
+                        CURRENT_CONFIG="QUICK_START"
+                        return
+                        ;;
+                    2)
+                        echo -e "\e[32mLaunching all selected packages...\e[0m"
+                        GAME_ID="none"
+                        INTENTIONAL_CRASH_TIMER=0
+                        CURRENT_CONFIG="QUICK_START"
+                        return
+                        ;;
+                    3)
+                        echo -e "\e[33mLogging out all accounts in selected packages...\e[0m"
+                        for pkg in "${TARGET_PACKAGES[@]}"; do
+                            su -c "rm -rf /data/data/$pkg/shared_prefs/* 2>/dev/null"
+                            echo -e "  \e[32m$pkg logged out.\e[0m"
+                        done
+                        ;;
+                    4)
+                        echo -e "\e[33mClearing cache for selected packages...\e[0m"
+                        for pkg in "${TARGET_PACKAGES[@]}"; do
+                            su -c "rm -rf /data/data/$pkg/cache/* /data/data/$pkg/code_cache/* 2>/dev/null"
+                            echo -e "  \e[32m$pkg cache cleared.\e[0m"
+                        done
+                        ;;
+                    5)
+                        echo -e "\e[33mClearing application data for selected packages...\e[0m"
+                        for pkg in "${TARGET_PACKAGES[@]}"; do
+                            su -c "pm clear $pkg >/dev/null 2>&1"
+                            echo -e "  \e[32m$pkg data cleared.\e[0m"
+                        done
+                        ;;
+                    6)
+                        echo -e "\n\e[41m\e[1;37m WARNING: This will uninstall all selected Roblox packages! \e[0m"
+                        read -p "Are you sure? (yes/no): " confirm_un
+                        if [[ "${confirm_un,,}" == "yes" ]]; then
+                            for pkg in "${TARGET_PACKAGES[@]}"; do
+                                echo -e "  \e[33m$pkg deleting....\e[0m"
+                                su -c "pm uninstall $pkg >/dev/null 2>&1"
+                                echo -e "  \e[32m$pkg deleted.\e[0m"
+                            done
+                            echo -e "\e[32mUninstallation complete.\e[0m"
+                            sleep 2
+                            show_menu
+                            return
+                        else
+                            echo -e "\e[31mAborted.\e[0m"
+                        fi
+                        ;;
+                    7)
+                        show_menu
+                        return
+                        ;;
+                    *)
+                        echo -e "\e[31mInvalid action.\e[0m"
+                        ;;
+                esac
+            done
             ;;
         6)
             # 6. Setup Discord Webhook
-            echo -e "\e[33m[Feature Scaffold] Setup Discord Webhook\e[0m"
-            sleep 1
-            show_menu
+            clear
+            echo -e "\e[1;36mSetup Discord Webhook\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            
+            # Check global env file for webhook
+            local env_hook=$(grep "GLOBAL_WEBHOOK=" "$HOME/.roblox_reconnector.conf" 2>/dev/null | cut -d'"' -f2)
+            local hook_active=$(grep "GLOBAL_WEBHOOK_ACTIVE=" "$HOME/.roblox_reconnector.conf" 2>/dev/null | cut -d'=' -f2)
+            
+            if [[ -n "$env_hook" ]]; then
+                echo -e "Webhook URL is Present."
+                if [[ "$hook_active" == "1" ]]; then
+                    echo -e "Status: \e[32mActive\e[0m\n"
+                    TARGET_WEBHOOK="$env_hook"
+                else
+                    echo -e "Status: \e[31mInactive\e[0m\n"
+                    TARGET_WEBHOOK=""
+                fi
+            else
+                echo -e "Webhook URL is \e[31mNot Set\e[0m.\n"
+                TARGET_WEBHOOK=""
+            fi
+            
+            while true; do
+                echo -e "  \e[36m1.\e[0m Change Webhook URL"
+                echo -e "  \e[36m2.\e[0m Turn on Webhook"
+                echo -e "  \e[36m3.\e[0m Turn off webhook"
+                echo -e "  \e[36m4.\e[0m Home\n"
+                
+                read -p "Select an option: " wh_action
+                
+                case $wh_action in
+                    1)
+                        read -p "Enter new Webhook URL: " new_hook
+                        if [[ -n "$new_hook" ]]; then
+                            # Update conf
+                            sed -i '/GLOBAL_WEBHOOK=/d' "$HOME/.roblox_reconnector.conf" 2>/dev/null
+                            echo "GLOBAL_WEBHOOK=\"$new_hook\"" >> "$HOME/.roblox_reconnector.conf"
+                            env_hook="$new_hook"
+                            
+                            read -p "Do you want to turn on Webhook? (1. Yes / 2. No): " wh_on
+                            sed -i '/GLOBAL_WEBHOOK_ACTIVE=/d' "$HOME/.roblox_reconnector.conf" 2>/dev/null
+                            if [[ "$wh_on" == "1" || "${wh_on,,}" == "yes" ]]; then
+                                echo "GLOBAL_WEBHOOK_ACTIVE=1" >> "$HOME/.roblox_reconnector.conf"
+                                echo -e "\e[32mWebhook is turned on.\e[0m"
+                            else
+                                echo "GLOBAL_WEBHOOK_ACTIVE=0" >> "$HOME/.roblox_reconnector.conf"
+                                echo -e "\e[31mWebhook is turned off.\e[0m"
+                            fi
+                            sleep 3
+                            show_menu
+                            return
+                        fi
+                        ;;
+                    2)
+                        if [[ -z "$env_hook" ]]; then
+                            echo -e "\e[31mPlease add a URL first (Option 1).\e[0m"
+                        elif [[ "$hook_active" == "1" ]]; then
+                            echo -e "\e[33mWebhook is already turned on and its active.\e[0m"
+                        else
+                            sed -i '/GLOBAL_WEBHOOK_ACTIVE=/d' "$HOME/.roblox_reconnector.conf" 2>/dev/null
+                            echo "GLOBAL_WEBHOOK_ACTIVE=1" >> "$HOME/.roblox_reconnector.conf"
+                            hook_active="1"
+                            echo -e "\e[32mWebhook is turned on.\e[0m"
+                            sleep 3
+                            show_menu
+                            return
+                        fi
+                        ;;
+                    3)
+                        if [[ -z "$env_hook" ]]; then
+                            echo -e "\e[31mPlease add a URL first (Option 1).\e[0m"
+                        elif [[ "$hook_active" == "0" ]]; then
+                            echo -e "\e[33mWebhook is already turned off and inactive.\e[0m"
+                        else
+                            sed -i '/GLOBAL_WEBHOOK_ACTIVE=/d' "$HOME/.roblox_reconnector.conf" 2>/dev/null
+                            echo "GLOBAL_WEBHOOK_ACTIVE=0" >> "$HOME/.roblox_reconnector.conf"
+                            hook_active="0"
+                            echo -e "\e[31mWebhook is turned off.\e[0m"
+                            sleep 3
+                            show_menu
+                            return
+                        fi
+                        ;;
+                    4)
+                        show_menu
+                        return
+                        ;;
+                    *)
+                        echo -e "\e[31mInvalid option.\e[0m"
+                        ;;
+                esac
+            done
             ;;
         7)
             # 7. Logout Roblox
-            echo -e "\e[33m[Feature Scaffold] Logout Roblox\e[0m"
-            sleep 1
+            echo -e "\e[33mScanning and logging out all installed Roblox accounts...\e[0m"
+            local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
+            for pkg in $raw_pkgs; do
+                su -c "rm -rf /data/data/$pkg/shared_prefs/* 2>/dev/null"
+                echo -e "  \e[32m$pkg logged out.\e[0m"
+            done
+            sleep 2
             show_menu
             ;;
         8)
