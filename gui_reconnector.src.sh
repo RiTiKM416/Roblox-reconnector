@@ -28,6 +28,44 @@ mkdir -p "$CONFIG_DIR"
 
 # --- Utility Functions ---
 
+# Colors using tput if available, fall back to ANSI
+if command -v tput >/dev/null 2>&1; then
+  BOLD=$(tput bold)
+  NORMAL=$(tput sgr0)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAG=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  GRAY=$(tput setaf 7)
+else
+  BOLD='\e[1m'
+  NORMAL='\e[0m'
+  RED='\e[31m'
+  GREEN='\e[32m'
+  YELLOW='\e[33m'
+  BLUE='\e[34m'
+  MAG='\e[35m'
+  CYAN='\e[36m'
+  GRAY='\e[37m'
+fi
+
+box() {
+  local s="${1}" w=${2:-60}
+  printf "%s\n" "${MAG}┌$(printf '─%.0s' $(seq 1 $((w-2))))┐${NORMAL}"
+  printf "%s\n" "${MAG}│${NORMAL} $(printf '%-'$((w-4))'s' "$s") ${MAG}│${NORMAL}"
+  printf "%s\n" "${MAG}└$(printf '─%.0s' $(seq 1 $((w-2))))┘${NORMAL}"
+}
+
+show_active_monitor() {
+  clear
+  box "SYSTEM ACTIVE MONITOR" 76
+  echo -e "\nGame ID locked: ${CYAN}${GAME_ID:-none}${NORMAL}\n"
+  echo -e "Type '${RED}Stop${NORMAL}' at any time to pause the monitor.\n"
+  echo -e "${GRAY}$(date) — Press Ctrl+C to quit monitor.${NORMAL}\n"
+}
+
 show_progress() {
     local message="$1"
     local steps=25
@@ -52,12 +90,7 @@ check_root() {
 
 verify_platoboost_key() {
     clear
-    echo -e "\e[1;35m  ____      _     _               \e[0m"
-    echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
-    echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
-    echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
-    echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
-    echo -e "\e[1;30m==========================================\e[0m"
+    box "TERMUX RECONNECTOR KEY AUTH" 76
     
     local needs_new_key=0
 
@@ -379,19 +412,11 @@ EOF
 # --- GUI Menu ---
 show_menu() {
     clear
-    echo -e "\e[1;35m  ____      _     _               \e[0m"
-    echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
-    echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
-    echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
-    echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
-    echo -e "\e[1;36m      C O N F I G   M A N A G E R \e[0m"
-    echo -e "\e[1;30m==========================================\e[0m"
+    box "TERMUX RECONNECTOR — CONFIG MANAGER" 76
     
-    echo -e "  \e[1;32m[1]\e[0m Load existing Config"
-    echo -e "  \e[1;32m[2]\e[0m Create a new Config"
-    echo -e "  \e[1;31m[3]\e[0m Exit Application"
-    echo ""
-    echo -e "\e[1;34m==========================================\e[0m"
+    echo -e "\n  ${BOLD}1)${NORMAL} Load existing config"
+    echo -e "  ${BOLD}2)${NORMAL} Create a new config"
+    echo -e "  ${BOLD}3)${NORMAL} Exit Application\n"
     
     read -p "Select an option (1/2/3): " menu_choice
     
@@ -558,17 +583,7 @@ while [[ -z "$CURRENT_CONFIG" ]]; do
     show_menu
 done
 
-clear
-echo -e "\e[1;35m  ____      _     _               \e[0m"
-echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
-echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
-echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
-echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
-echo -e "\e[1;36m       S Y S T E M   A C T I V E  \e[0m"
-echo -e "\e[1;30m==========================================\e[0m"
-echo -e "Game ID locked: \e[1;33m$GAME_ID\e[0m"
-echo -e "Type \e[1;31mStop\e[0m at any time to pause."
-echo ""
+show_active_monitor
 sleep 2
 
 # Initial launch
@@ -603,17 +618,7 @@ while true; do
                 show_menu
                 
                 # Redraw the monitor UI after returning from the menu
-                clear
-                echo -e "\e[1;35m  ____      _     _               \e[0m"
-                echo -e "\e[1;35m |  _ \ ___| |__ | | _____  __    \e[0m"
-                echo -e "\e[1;34m | |_) / _ \ '_ \| |/ _ \ \/ /    \e[0m"
-                echo -e "\e[1;34m |  _ <  __/ |_) | | (_) >  <     \e[0m"
-                echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
-                echo -e "\e[1;36m       S Y S T E M   A C T I V E  \e[0m"
-                echo -e "\e[1;30m==========================================\e[0m"
-                echo -e "Game ID locked: \e[1;33m$GAME_ID\e[0m"
-                echo -e "Type \e[1;31mStop\e[0m at any time to pause."
-                echo ""
+                show_active_monitor
                 sleep 2
                 
                 launch_game
