@@ -115,6 +115,8 @@ verify_platoboost_key() {
                 else
                     printf "\e[32m[+] Cached Daily Key found! Time remaining: \e[1;33m%02dh %02dm\e[0m\n" $rem_h $rem_m
                 fi
+            fi
+        else
             needs_new_key=1
         fi
     else
