@@ -59,8 +59,34 @@ verify_platoboost_key() {
     echo -e "\e[1;36m |_| \_\___|_.__/|_|\___/_/\_\    \e[0m"
     echo -e "\e[1;30m==========================================\e[0m"
     
-    if [[ -z "$PLATOBOOST_KEY" ]]; then
-        echo -e "\e[31mNo authentication key found in config.\e[0m"
+    local needs_new_key=0
+
+    if [[ -n "$PLATOBOOST_KEY" ]]; then
+        if [[ "$KEY_EXPIRATION" == "LIFETIME" ]]; then
+            echo -e "\e[32m[+] Cached Lifetime Admin Key found.\e[0m"
+        elif [[ -n "$KEY_EXPIRATION" ]]; then
+            local current_time=$(date +%s)
+            local remaining=$((KEY_EXPIRATION - current_time))
+            
+            if [[ $remaining -le 0 ]]; then
+                echo -e "\e[31m[-] Saved key has expired (00h 00m remaining).\e[0m"
+                needs_new_key=1
+                PLATOBOOST_KEY=""
+            else
+                local rem_h=$((remaining / 3600))
+                local rem_m=$(((remaining % 3600) / 60))
+                # Pad single digits to ensure 05h 02m look.
+                printf "\e[32m[+] Cached Key found! Time remaining: \e[1;33m%02dh %02dm\e[0m\n" $rem_h $rem_m
+            fi
+        else
+            needs_new_key=1
+        fi
+    else
+        needs_new_key=1
+    fi
+
+    if [[ $needs_new_key -eq 1 ]]; then
+        echo -e "\e[31mNo valid authentication key found.\e[0m"
         echo -e "\e[33mGet your daily key on our Discord: \e[1;32m$DISCORD_LINK\e[0m"
         echo -e "\e[36m(Go to #get-key channel and type \e[1;37m/getkey\e[36m)\e[0m"
         echo ""
@@ -81,6 +107,15 @@ verify_platoboost_key() {
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "\e[32mKey is valid and attached specifically to your Device! Proceeding...\e[0m"
         
+        # Determine and set Expiration if it is a new valid key that doesn't have an expiration yet
+        if [[ "$PLATOBOOST_KEY" == ADMIN_GEN_* ]]; then
+            KEY_EXPIRATION="LIFETIME"
+        elif [[ -z "$KEY_EXPIRATION" || $needs_new_key -eq 1 ]]; then
+            KEY_EXPIRATION=$(( $(date +%s) + 86400 ))
+        fi
+        
+        save_hwid
+        
         # Backup Updater Sync
         if [[ -n "$WEBHOOK_URL" ]]; then
             curl -s "$WEBHOOK_URL/api/backup/update" \
@@ -88,13 +123,14 @@ verify_platoboost_key() {
                  -d "{\"key\": \"$PLATOBOOST_KEY\", \"device_id\": \"$DEVICE_ID\"}" > /dev/null &
         fi
         
-        # Save it back to ensure it's stored
-        save_config
+        # If CURRENT_CONFIG is already populated, resave it. Otherwise, it will save when they reach the menu.
+        if [[ -n "$CURRENT_CONFIG" ]]; then save_config; fi
         sleep 1
     else
         echo -e "\e[31mInvalid or expired key.\e[0m"
         echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
         echo ""
+        KEY_EXPIRATION=""
         read -p "Enter your new Auth Key: " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
     fi
@@ -234,6 +270,7 @@ save_hwid() {
     local auth_file="$HOME/.termux_reconnector_auth"
     echo "DEVICE_ID=\"$DEVICE_ID\"" > "$auth_file"
     echo "PLATOBOOST_KEY=\"$PLATOBOOST_KEY\"" >> "$auth_file"
+    echo "KEY_EXPIRATION=\"$KEY_EXPIRATION\"" >> "$auth_file"
 }
 
 load_config() {
