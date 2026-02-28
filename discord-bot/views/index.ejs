@@ -1,478 +1,678 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Termux Reconnector — Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termux Reconnector Admin</title>
     <style>
-        /* Reset & base */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
         :root {
-            --bg: #071025;
-            /* deep navy */
-            --card: #0f1724;
-            --muted: #89a0b3;
-            --text: #e6eef6;
-            --accent: #4f8ef7;
-            --glass: rgba(255, 255, 255, 0.03);
+            --bg-body: #0f172a;
+            /* Deep Slate */
+            --bg-card: rgba(30, 41, 59, 0.7);
+            /* Translucent Slate */
+            --bg-input: #0f172a;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary-blue: #6366f1;
+            /* Soothing Indigo */
+            --primary-hover: #4f46e5;
             --success: #10b981;
             --danger: #ef4444;
-            --border: rgba(255, 255, 255, 0.04);
-            --glass-2: rgba(255, 255, 255, 0.02);
-            --radius: 12px;
-            font-synthesis: none;
-        }
-
-        * {
-            box-sizing: border-box
-        }
-
-        html,
-        body {
-            height: 100%
+            --card-radius: 16px;
+            /* Softer corners */
+            --input-radius: 10px;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
 
         body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
             margin: 0;
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-            background: linear-gradient(180deg, var(--bg) 0%, #04121f 100%);
-            color: var(--text);
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            padding: 28px;
-        }
-
-        .wrap {
-            max-width: 1200px;
-            margin: 0 auto
-        }
-
-        header.appbar {
+            padding: 4rem 1.5rem;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            padding: 18px;
-            border-radius: var(--radius);
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
-            border: 1px solid var(--border);
-            backdrop-filter: blur(8px);
-            margin-bottom: 22px
+            position: relative;
+            overflow-x: hidden;
         }
 
-        .brand {
-            display: flex;
-            gap: 12px;
-            align-items: center
+        /* Ambient Glow Effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80vw;
+            height: 80vh;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(15, 23, 42, 0) 70%);
+            z-index: -1;
+            pointer-events: none;
         }
 
-        .logo {
-            width: 46px;
-            height: 46px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--accent), #7cc3ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .container {
+            width: 100%;
+            max-width: 950px;
+            z-index: 1;
+        }
+
+        .header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
             font-weight: 800;
-            color: #071025;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 0.75rem 0;
+            letter-spacing: -0.02em;
         }
 
-        .brand h1 {
-            font-size: 16px;
-            margin: 0
-        }
-
-        .brand p {
+        .header p {
+            color: var(--text-muted);
             margin: 0;
-            color: var(--muted);
-            font-size: 12px
+            font-size: 1.1rem;
+            font-weight: 400;
         }
 
-        /* Stats grid */
-        .stats {
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 14px;
-            margin-bottom: 20px
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
         }
 
         .card {
-            background: var(--card);
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid var(--border)
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: 700
-        }
-
-        .stat-meta {
-            color: var(--muted);
-            font-size: 12px
-        }
-
-        /* Controls */
-        .controls {
+            background-color: var(--bg-card);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: var(--card-radius);
+            padding: 1.75rem;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
             display: flex;
-            gap: 10px;
-            align-items: center
+            flex-direction: column;
+            justify-content: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .card h3 {
+            margin: 0 0 1rem 0;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .card .value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 14px;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .online {
+            color: var(--success);
+            background-color: var(--success);
+        }
+
+        .offline {
+            color: var(--danger);
+            background-color: var(--danger);
         }
 
         .btn {
-            padding: 8px 12px;
-            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-hover));
+            color: white;
             border: none;
-            background: var(--accent);
-            color: #04203b;
-            font-weight: 700;
+            padding: 0.85rem 1.5rem;
+            border-radius: var(--input-radius);
+            font-weight: 600;
+            font-size: 0.95rem;
             cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 13px;
-        }
-
-        .btn.ghost {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text)
-        }
-
-        .btn.danger {
-            background: transparent;
-            border: 1px solid var(--danger);
-            color: var(--danger)
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.39);
         }
 
         .btn:hover {
-            opacity: 0.8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
         }
 
-        /* Table */
-        .table-wrap {
-            margin-top: 18px;
-            background: linear-gradient(180deg, var(--glass), transparent);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border)
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn.stop {
+            background: transparent;
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: var(--danger);
+            box-shadow: none;
+        }
+
+        .btn.stop:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            justify-content: center;
+        }
+
+        .logs {
+            background-color: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: var(--card-radius);
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            margin-top: 2rem;
+            overflow-x: auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .logs h2,
+        .admin-section h2 {
+            margin-top: 0;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px
+            text-align: left;
+            margin-top: 1rem;
         }
 
         th,
         td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--glass-2);
-            text-align: left
+            padding: 1.25rem 1rem;
+            border-bottom: 1px solid var(--border-color);
         }
 
         th {
-            font-size: 12px;
-            color: var(--muted);
-            font-weight: 700
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        tr:hover td {
-            background: linear-gradient(90deg, rgba(255, 255, 255, 0.01), transparent)
+        tbody tr {
+            transition: background-color 0.2s ease;
         }
 
-        .chip {
-            display: inline-block;
-            padding: 6px 8px;
-            border-radius: 999px;
-            font-size: 12px
+        tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
         }
 
-        .chip.ok {
-            background: rgba(16, 185, 129, 0.12);
-            color: var(--success)
+        tr:last-child td {
+            border-bottom: none;
         }
 
-        .chip.bad {
-            background: rgba(239, 68, 68, 0.08);
-            color: var(--danger)
+        a.link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
         }
 
-        .chip.neutral {
-            background: rgba(79, 142, 247, 0.12);
-            color: var(--accent)
+        a.link:hover {
+            color: #818cf8;
+            text-decoration: underline;
         }
 
-        /* Alert */
-        .alert {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .admin-section {
+            background-color: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border-radius: var(--card-radius);
+            padding: 2.5rem;
+            border: 1px solid var(--border-color);
+            margin-top: 2rem;
+            box-shadow: var(--shadow-md);
         }
 
-        .alert.success {
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid var(--success);
-            color: var(--success);
+        .admin-section>p {
+            color: var(--text-muted);
+            margin-top: -1rem;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+            line-height: 1.5;
         }
 
-        .alert.error {
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid var(--danger);
-            color: var(--danger);
-        }
-
-        .close-btn {
-            cursor: pointer;
-            opacity: 0.7;
-        }
-
-        .close-btn:hover {
-            opacity: 1;
-        }
-
-        /* Admin forms */
-        .forms-grid {
+        .form-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
         }
 
         .form-group {
-            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 13px;
-            color: var(--muted);
+        .form-group h4 {
+            margin: 0;
+            color: var(--text-main);
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+
+        .form-group p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
         }
 
         .form-group input {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: rgba(0, 0, 0, 0.2);
-            color: var(--text);
-            font-family: inherit;
+            padding: 0.85rem 1.25rem;
+            border-radius: var(--input-radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-main);
+            outline: none;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
         }
 
-        @media (max-width:720px) {
-            header.appbar {
-                flex-direction: column;
-                gap: 12px;
-                align-items: flex-start
+        .form-group input:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            background-color: rgba(15, 23, 42, 0.8);
+        }
+
+        .form-group input::placeholder {
+            color: #475569;
+        }
+
+        .btn-small {
+            padding: 0.7rem 1.2rem;
+            font-size: 0.9rem;
+        }
+
+        .notification {
+            padding: 1rem 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: var(--input-radius);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            animation: slideDown 0.4s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
             }
 
-            .controls {
-                width: 100%;
-                justify-content: space-between
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Segmented Control Navigation */
+        .nav-tabs {
+            display: flex;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 0.5rem;
+            border-radius: 12px;
+            margin-bottom: 2.5rem;
+            border: 1px solid var(--border-color);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .nav-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-main);
+        }
+
+        .nav-btn.active {
+            background: var(--primary-blue);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+            width: 100%;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
             }
 
-            .forms-grid {
-                grid-template-columns: 1fr;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
+        }
+
+        .notify-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .notify-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 2.5rem 0;
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            color: var(--text-main);
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap">
 
-        <% if (alert) { %>
-            <div class="alert <%= alert.type === 'success' ? 'success' : 'error' %>" id="alertBox">
-                <div><%- alert.message %></div>
-                <div class="close-btn" onclick="document.getElementById('alertBox').style.display='none'">✕</div>
+    <div class="container">
+        <div class="header">
+            <h1>Termux Admin Panel</h1>
+            <p>Discord Bot & HWID Session Manager</p>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="nav-btn active" data-tab="main-page">Dashboard</button>
+            <button class="nav-btn" data-tab="key-page">Key Logs</button>
+            <button class="nav-btn" data-tab="manage-bot">System Config</button>
+            <button class="nav-btn" data-tab="manage-message">UI Manager</button>
+        </nav>
+
+        <% if (typeof alert !=='undefined' && alert) { %>
+            <div class="notification <%= alert.type === 'success' ? 'notify-success' : 'notify-error' %>">
+                <%- alert.message %>
             </div>
             <% } %>
 
-                <header class="appbar">
-                    <div class="brand">
-                        <div class="logo">TR</div>
-                        <div>
-                            <h1>Termux Reconnector — Admin</h1>
-                            <p>Live device dashboard &amp; session controls</p>
+                <div id="main-page" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="card">
+                            <h3>System Status</h3>
+                            <p class="value">
+                                <span class="status-dot <%= state.botOnline ? 'online' : 'offline' %>"></span>
+                                <%= state.botOnline ? 'Online' : 'Offline' %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Total Keys Generated</h3>
+                            <p class="value">
+                                <%= state.totalKeysGenerated %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Active Keys (24h)</h3>
+                            <p class="value">
+                                <%= typeof activeCount !=='undefined' ? activeCount : 0 %>
+                            </p>
+                        </div>
+                        <div class="card">
+                            <h3>Expired Keys</h3>
+                            <p class="value">
+                                <%= typeof expiredCount !=='undefined' ? expiredCount : 0 %>
+                            </p>
                         </div>
                     </div>
 
                     <div class="controls">
-                        <form action="/api/admin/create-instant-key" method="POST" style="margin:0;">
-                            <button type="submit" class="btn">Gen Instant Key</button>
+                        <form action="/api/bot/toggle" method="POST">
+                            <% if (state.botOnline) { %>
+                                <button type="submit" class="btn stop">Shut Down Bot</button>
+                                <% } else { %>
+                                    <button type="submit" class="btn">Start Discord Bot</button>
+                                    <% } %>
                         </form>
-                        <form action="/api/bot/toggle" method="POST" style="margin:0;">
-                            <button type="submit" class="btn ghost">
-                                <%= state.botOnline ? 'Stop Bot' : 'Start Bot' %>
-                            </button>
-                        </form>
-                    </div>
-                </header>
-
-                <!-- Stats -->
-                <div class="stats">
-                    <div class="card">
-                        <div class="stat-value">
-                            <%= state.totalKeysGenerated %>
-                        </div>
-                        <div class="stat-meta">Total Keys Issued</div>
-                    </div>
-                    <div class="card">
-                        <div class="stat-value">
-                            <%= activeCount %>
-                        </div>
-                        <div class="stat-meta">Active Subscriptions</div>
-                    </div>
-                    <div class="card">
-                        <div class="stat-value">
-                            <%= expiredCount %>
-                        </div>
-                        <div class="stat-meta">Expired Subscriptions</div>
-                    </div>
-                    <div class="card">
-                        <div class="stat-value"><span class="chip <%= state.botOnline ? 'ok' : 'bad' %>">
-                                <%= state.botOnline ? 'ONLINE' : 'OFFLINE' %>
-                            </span></div>
-                        <div class="stat-meta">Bot Status: <%= userTag %> (<%= guildCount %> servers)</div>
+                        <button class="btn" style="background: rgba(255,255,255,0.1); color: white; box-shadow: none;"
+                            onclick="location.reload()">Refresh Sync</button>
                     </div>
                 </div>
 
-                <!-- Device Table -->
-                <div class="table-wrap card">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                        <div style="display:flex;gap:8px;align-items:center">
-                            <input id="q" placeholder="Search device, hwid, discord..."
-                                style="padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)"
-                                oninput="renderFilter()">
-                            <select id="filter"
-                                style="padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)"
-                                onchange="renderFilter()">
-                                <option value="all">All Statuses</option>
-                                <option value="active">Active (24h)</option>
-                                <option value="expired">Expired</option>
-                            </select>
-                        </div>
-                        <div style="color:var(--muted);font-size:13px">Showing <span id="count">0</span> sessions</div>
+                <div id="key-page" class="tab-content">
+                    <div class="logs">
+                        <h2>Active Backup Keys</h2>
+                        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Keys dynamically synced from Termux
+                            sessions via the Backup Updater.</p>
+                        <% if (typeof backupKeys !=='undefined' && backupKeys.length> 0) { %>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Discord Profile</th>
+                                        <th>Platoboost Key</th>
+                                        <th style="text-align: right;">Quick Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% backupKeys.forEach(function(log) { %>
+                                        <tr>
+                                            <td>
+                                                <%= log.time %>
+                                            </td>
+                                            <td>
+                                                <strong>
+                                                    <%= log.discordId %>
+                                                </strong><br>
+                                                <small style="color:var(--text-muted); font-family:monospace;">
+                                                    <%= log.hwid %>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <code
+                                                    style="color:var(--success); background:rgba(16,185,129,0.1); font-size:0.85rem;"><%= log.key %></code>
+                                            </td>
+                                            <td
+                                                style="text-align: right; display:flex; gap:0.5rem; justify-content:flex-end;">
+                                                <form action="/api/admin/reset-hwid" method="POST" style="margin:0;">
+                                                    <input type="hidden" name="key" value="<%= log.key %>">
+                                                    <button type="submit" class="btn btn-small"
+                                                        style="padding:0.4rem 0.8rem; font-size:0.8rem;">Reset
+                                                        HWID</button>
+                                                </form>
+                                                <form action="/api/admin/delete-key" method="POST" style="margin:0;">
+                                                    <input type="hidden" name="key" value="<%= log.key %>">
+                                                    <button type="submit" class="btn btn-small stop"
+                                                        style="padding:0.4rem 0.8rem; font-size:0.8rem;">Delete</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        <% }); %>
+                                </tbody>
+                            </table>
+                            <% } else { %>
+                                <p style="text-align:center; color:var(--text-muted); padding: 2rem 0;">No active Termux
+                                    sessions have been synced yet.</p>
+                                <% } %>
                     </div>
-
-                    <table id="devices-table">
-                        <thead>
-                            <tr>
-                                <th>Discord Tag</th>
-                                <th>HWID</th>
-                                <th>Key / Validation</th>
-                                <th>Last Synced</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
                 </div>
 
-                <!-- System Config Forms -->
-                <div class="forms-grid">
-                    <div class="card">
-                        <h3 style="margin-top:0;font-size:16px;">System Config (Bypass Link)</h3>
-                        <p style="color:var(--muted);font-size:13px;margin-bottom:15px;">Update the GUI Reconnector
-                            script URL injected into the `setup` and `getscript` bot commands.</p>
-                        <form action="/api/admin/update-embed" method="POST">
+                <div id="manage-bot" class="tab-content">
+                    <div class="admin-section">
+                        <h2>Advanced Management</h2>
+                        <p>Direct overrides for the hardware ID linking and relay system.</p>
+                        <div class="form-grid">
                             <div class="form-group">
-                                <label>Title</label>
-                                <input type="text" name="title" value="<%= embedConfig.title %>">
+                                <h4>Generate Instant Key</h4>
+                                <p>Generate a raw Admin Key string to paste directly into Termux (Bypasses Platoboost).
+                                </p>
+                                <form action="/api/admin/create-instant-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+                                    <button type="submit" class="btn btn-small"
+                                        style="background: var(--success);">Generate Admin Key</button>
+                                </form>
                             </div>
-                            <div class="form-group">
-                                <label>Script Raw Link (Important)</label>
-                                <input type="text" name="bypassLink" value="<%= embedConfig.bypassLink %>">
-                            </div>
-                            <button type="submit" class="btn">Update System</button>
-                        </form>
-                    </div>
 
-                    <div class="card">
-                        <h3 style="margin-top:0;font-size:16px;">Quick Actions & Info</h3>
-                        <p style="color:var(--muted);font-size:13px;margin-bottom:15px;">The HWID resets are executed
-                            via Platoboost API. Network issues will show an error alert.</p>
-                        <div
-                            style="background:rgba(0,0,0,0.2);padding:15px;border-radius:8px;border:1px solid var(--border);font-family:monospace;font-size:12px;color:var(--muted);">
-                            * HMAC-SHA256 signature enforcement: <span class="chip ok">ENABLED</span><br><br>
-                            * Local SQLite Database sync: <span class="chip ok">HEALTHY</span><br><br>
-                            * Discord Bot Instance: <span class="chip <%= state.botOnline ? 'ok' : 'bad' %>">
-                                <%= state.botOnline ? 'CONNECTED' : 'HALTED' %>
-                            </span>
+                            <div class="form-group">
+                                <h4>Generate Bypass Link</h4>
+                                <p>Bypass Discord and get a direct Platorelay link instantly.</p>
+                                <form action="/api/admin/create-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+                                    <button type="submit" class="btn btn-small">Generate Bypass Link</button>
+                                </form>
+                            </div>
+
+                            <div class="form-group">
+                                <h4>Blacklist / Revoke</h4>
+                                <p>Permanently invalidate a specific user's generated key.</p>
+                                <form action="/api/admin/delete-key" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+                                    <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                    <button type="submit" class="btn btn-small stop">Revoke Access</button>
+                                </form>
+                            </div>
+
+                            <div class="form-group">
+                                <h4>Forcible HWID Reset</h4>
+                                <p>Unbind a key from a specific device if Discord linking fails.</p>
+                                <form action="/api/admin/reset-hwid" method="POST"
+                                    style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.5rem;">
+                                    <input type="text" name="key" placeholder="Enter Platoboost Key" required>
+                                    <button type="submit" class="btn btn-small">Reset Device Binding</button>
+                                </form>
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <div id="manage-message" class="tab-content">
+                    <div class="admin-section">
+                        <h2>Bot Appearance Manager</h2>
+                        <p>Customize the Discord UI sent when you type <code>/setup</code>. Save to instantly push the
+                            update to Discord.</p>
+
+                        <form action="/api/admin/update-embed" method="POST"
+                            style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 2rem;">
+
+                            <div class="form-grid">
+                                <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                    <h4>Embed Title</h4>
+                                    <input type="text" name="title"
+                                        value="<%= typeof embedConfig !== 'undefined' ? embedConfig.title : 'Termux Reconnector Authentication' %>"
+                                        placeholder="E.g., Termux Reconnector Authentication">
+                                </div>
+
+                                <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                    <h4>Hex Color Code</h4>
+                                    <input type="text" name="color"
+                                        value="<%= typeof embedConfig !== 'undefined' ? embedConfig.color : '#6366f1' %>"
+                                        placeholder="#6366f1">
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                <h4>Embed Description</h4>
+                                <input type="text" name="description"
+                                    value="<%= typeof embedConfig !== 'undefined' ? embedConfig.description : 'Click one of the buttons below to interact with the Free Key System.' %>"
+                                    placeholder="E.g., Click below to get your key.">
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                    <h4>Large Banner Image URL (Optional)</h4>
+                                    <input type="url" name="image"
+                                        value="<%= typeof embedConfig !== 'undefined' ? embedConfig.image : '' %>"
+                                        placeholder="https://imgur.com/your-image.png">
+                                </div>
+
+                                <div class="form-group" style="background:transparent; border:none; padding:0;">
+                                    <h4>Small Thumbnail URL (Optional)</h4>
+                                    <input type="url" name="thumbnail"
+                                        value="<%= typeof embedConfig !== 'undefined' ? embedConfig.thumbnail : '' %>"
+                                        placeholder="https://imgur.com/your-logo.png">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn" style="align-self: flex-start; margin-top: 1rem;">Deploy
+                                Appearance Setup</button>
+                        </form>
                     </div>
                 </div>
     </div>
 
     <script>
-        const serverTime = Date.now();
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.nav-btn');
+            const contents = document.querySelectorAll('.tab-content');
 
-        // Inject backend session data
-        const rawDevices = <% - JSON.stringify(backupKeys || []) %>;
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    contents.forEach(c => c.classList.remove('active'));
 
-        // Process statuses based on timeMs
-        const devices = rawDevices.map(d => {
-            const ms_ago = serverTime - (d.timeMs || 0);
-            const is_active = ms_ago < 86400000; // 24 hours
-            const masked_key = (d.key && d.key.length > 8) ? d.key.substring(0, 4) + '••••••••' : d.key;
-            return {
-                ...d,
-                status: is_active ? 'active' : 'expired',
-                key_masked: masked_key,
-                is_admin: d.key && d.key.startsWith('ADMIN_GEN_')
-            };
-        });
+                    tab.classList.add('active');
 
-        function renderFilter() {
-            const q = document.getElementById('q').value.toLowerCase();
-            const f = document.getElementById('filter').value;
-            const tbody = document.querySelector('#devices-table tbody');
-            tbody.innerHTML = '';
-
-            const filtered = devices.filter(d => {
-                if (f !== 'all' && d.status !== f) return false;
-                if (!q) return true;
-                return (d.discordId || '').toLowerCase().includes(q) ||
-                    (d.hwid || '').toLowerCase().includes(q) ||
-                    (d.key || '').toLowerCase().includes(q);
+                    const targetId = tab.getAttribute('data-tab');
+                    document.getElementById(targetId).classList.add('active');
+                });
             });
-
-            document.getElementById('count').innerText = filtered.length;
-
-            for (const d of filtered) {
-                const tr = document.createElement('tr');
-                const badge = d.status === 'active' ? '<span class="chip ok">Active</span>' : '<span class="chip bad">Expired</span>';
-                const is_admin_badge = d.is_admin ? '<span class="chip neutral" style="margin-left:5px;">Admin</span>' : '';
-
-                tr.innerHTML = `
-          <td><strong>${d.discordId || '—'}</strong></td>
-          <td style="font-family:monospace;font-size:12px;">${d.hwid}</td>
-          <td style="font-family:monospace;font-size:12px;">${d.key_masked || '—'} ${is_admin_badge}</td>
-          <td>${new Date(d.timeMs).toLocaleString()}</td>
-          <td>${badge}</td>
-          <td style="display:flex;gap:5px;">
-            <form method="POST" action="/api/admin/reset-hwid" style="margin:0;" onsubmit="return confirm('Reset HWID for key ${d.key}?');">
-              <input type="hidden" name="key" value="${d.key}">
-              <button type="submit" class="btn ghost" style="padding:4px 8px;font-size:11px;">Reset HWID</button>
-            </form>
-            <form method="POST" action="/api/admin/delete-key" style="margin:0;" onsubmit="return confirm('Delete key ${d.key}?');">
-              <input type="hidden" name="key" value="${d.key}">
-              <button type="submit" class="btn danger" style="padding:4px 8px;font-size:11px;">Delete</button>
-            </form>
-          </td>
-        `;
-                tbody.appendChild(tr);
-            }
-        }
-
-        // Initial render
-        renderFilter();
+        });
     </script>
 </body>
 
