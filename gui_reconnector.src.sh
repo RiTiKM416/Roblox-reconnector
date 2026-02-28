@@ -69,8 +69,14 @@ verify_platoboost_key() {
     
     show_progress "Authenticating Device HWID..."
     
-    # Platorelay V3 Verification Endpoint - Hidden HWID bind
-    RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$PLATOBOOST_KEY")
+    # Check for direct Instant Admin Key bypass
+    if [[ "$PLATOBOOST_KEY" == ADMIN_GEN_* ]]; then
+        echo -e "\e[32mInstant Admin Key Provider recognized! Bypassing link generation...\e[0m"
+        RESPONSE="true"
+    else
+        # Platorelay V3 Verification Endpoint - Hidden HWID bind
+        RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$PLATOBOOST_KEY")
+    fi
     
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "\e[32mKey is valid and attached specifically to your Device! Proceeding...\e[0m"
