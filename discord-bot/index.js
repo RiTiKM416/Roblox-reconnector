@@ -134,7 +134,10 @@ app.post('/api/bot/toggle', (req, res) => {
         client.destroy();
         appState.botOnline = false;
     } else {
-        client.login(TOKEN);
+        client.login(TOKEN).catch(e => {
+            console.error("[Bot] Manual Login Error:", e.message || e);
+            appState.botOnline = false;
+        });
     }
     res.redirect('/');
 });
@@ -579,5 +582,8 @@ app.listen(PORT, () => {
     console.log(`[Web] Admin Dashboard running on http://localhost:${PORT}`);
     console.log(`[Web] Use username: ${ADMIN_USER} | pass: ${ADMIN_PASS}`);
     // Start bot on boot
-    client.login(TOKEN);
+    client.login(TOKEN).catch(e => {
+        console.error("[Bot] Auto-Login Failed on Boot:", e.message || e);
+        appState.botOnline = false;
+    });
 });
