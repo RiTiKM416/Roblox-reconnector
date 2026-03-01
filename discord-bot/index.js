@@ -21,8 +21,8 @@ db.serialize(() => {
 });
 
 // --- Environment Variables ---
-const TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const TOKEN = process.env.DISCORD_TOKEN || process.env.BOT_TOKEN;
+const CLIENT_ID = process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID;
 const PLATOBOOST_PROJECT = '21504';
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
