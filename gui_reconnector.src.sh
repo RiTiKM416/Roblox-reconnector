@@ -367,7 +367,10 @@ is_google_signin_focused() {
 launch_game() {
     print_msg "\e[33mEnsuring Roblox packages are closed before launch...\e[0m"
     for pkg in "${TARGET_PACKAGES[@]}"; do
-        su -c "am force-stop $pkg"
+        local is_running=$(su -c "pidof $pkg" 2>/dev/null)
+        if [[ -n "$is_running" ]]; then
+            su -c "am force-stop $pkg"
+        fi
     done
     sleep 3
 
