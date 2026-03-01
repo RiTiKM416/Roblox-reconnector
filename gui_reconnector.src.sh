@@ -1047,7 +1047,7 @@ show_menu() {
         8)
             # 8. Exit Application
             echo -e "\e[36mExiting. Goodbye!\e[0m"
-            exit 0
+            su -c "am force-stop com.termux" 2>/dev/null || kill -9 $PPID || exit 0
             ;;
         *)
             echo -e "\e[31mInvalid option selected.\e[0m"
@@ -1112,7 +1112,7 @@ while true; do
                 break
             elif [[ "${pause_input,,}" == "exit" ]]; then
                 print_msg "\e[36mExiting Roblox Auto-Reconnector.\e[0m"
-                exit 0
+                su -c "am force-stop com.termux" 2>/dev/null || kill -9 $PPID || exit 0
             fi
         done
     fi
