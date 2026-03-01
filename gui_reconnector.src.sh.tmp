@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# REblox (Termux) Core Logic [V2 GUI]
+# Roblox Auto-Reconnector (Termux) Core Logic [V2 GUI]
 # This script runs locally on the device AFTER installation.
 
 # --- Configuration & State Variables ---
@@ -59,14 +59,22 @@ box() {
 }
 
 show_active_monitor() {
-    # We call update_logger to trigger the initial visual draw instead of relying on this static block
-    # This prevents the static block from being drawn and then overwritten poorly.
-    if [[ $IS_RUNNING -eq 1 ]]; then
-        update_logger
-    else
-        show_header "S Y S T E M   A C T I V E"
-        echo -e "Initializing Hardware Monitors...\n"
-    fi
+  clear
+  echo -e "${GRAY}------------------ TERMUX RECONNECTOR - SYSTEM ACTIVE -------------------${NORMAL}\n"
+  
+  echo -e "${MAG}  ____       _     _             ${NORMAL}"
+  echo -e "${MAG} |  _ \ ___ | |__ | | _____  __  ${NORMAL}"
+  echo -e "${BLUE} | |_) / _ \| '_ \| |/ _ \ \/ /  ${NORMAL}"
+  echo -e "${CYAN} |  _ < (_) | |_) | | (_) >  <   ${NORMAL}"
+  echo -e "${CYAN} |_| \_\___/|_.__/|_|\___/_/\_\  ${NORMAL}\n"
+  
+  echo -e "${BOLD}      S Y S T E M   A C T I V E ${NORMAL}"
+  echo -e "${GRAY}==========================================${NORMAL}\n"
+  
+  echo -e "Game ID locked: ${CYAN}${GAME_ID:-none}${NORMAL}\n"
+  echo -e "Type '${RED}Stop${NORMAL}' at any time to pause the monitor.\n"
+  echo -e "${GRAY}$(date) — Press Ctrl+C to quit monitor.${NORMAL}\n"
+  echo -e "${GRAY}==========================================${NORMAL}\n"
 }
 
 show_progress() {
@@ -92,7 +100,8 @@ check_root() {
 }
 
 verify_platoboost_key() {
-    show_header "L I C E N S E   A U T H E N T I C A T I O N"
+    clear
+    box "TERMUX RECONNECTOR KEY AUTH" 76
     
     local needs_new_key=0
 
@@ -176,15 +185,9 @@ verify_platoboost_key() {
         if [[ -n "$CURRENT_CONFIG" ]]; then save_config; fi
         sleep 1
     else
-        # HWID Binding Error messaging
-        if echo "$RESPONSE" | grep -qi "hwid\|device\|already in use"; then
-             echo -e "\e[31mThis key is already used on another device.\e[0m"
-             echo -e "\e[33mReset the HWID of this key on our discord using the 'Reset Key' button in the #get-key section.\e[0m\n"
-        else
-             echo -e "\e[31mInvalid or expired key.\e[0m"
-             echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m\n"
-        fi
-        
+        echo -e "\e[31mInvalid or expired key.\e[0m"
+        echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
+        echo ""
         KEY_EXPIRATION=""
         read -p "Enter your new Access Key : " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
@@ -192,8 +195,7 @@ verify_platoboost_key() {
 }
 
 print_msg() {
-    # Print the line clearly and erase the remainder of the line
-    echo -e "\r\033[K$1"
+    printf "\r\033[K%s\n" "$1"
 }
 
 update_logger() {
@@ -205,136 +207,15 @@ update_logger() {
         local seconds=$((elapsed % 60))
 
         local time_str=""
-        if [[ $hours -gt 0 ]]; then time_str="${hours}h "; fi
-        if [[ $minutes -gt 0 || $hours -gt 0 ]]; then time_str="${time_str}${minutes}m "; fi
-        time_str="${time_str}${seconds}s"
-        # Safe Hardware polling (Pure Bash string splitting to avoid any C-binary stack corruption on emulators)
-        
-        # CPU Polling (Pure Bash parsing of /proc/stat)
-        local cpu_raw="N/A"
-        local cpu_v1=$(su -c "cat /proc/stat 2>/dev/null")
-        local cpu_line1=""
-        while IFS= read -r line; do if [[ "$line" == cpu\ * ]]; then cpu_line1="$line"; break; fi; done <<< "$cpu_v1"
-        sleep 0.2
-        local cpu_v2=$(su -c "cat /proc/stat 2>/dev/null")
-        local cpu_line2=""
-        while IFS= read -r line; do if [[ "$line" == cpu\ * ]]; then cpu_line2="$line"; break; fi; done <<< "$cpu_v2"
-        
-        if [[ -n "$cpu_line1" && -n "$cpu_line2" ]]; then
-            read -r _ u1 n1 s1 i1 iow1 irq1 soft1 steal1 _ <<< "$cpu_line1"
-            read -r _ u2 n2 s2 i2 iow2 irq2 soft2 steal2 _ <<< "$cpu_line2"
-            
-            if [[ "$u1" =~ ^[0-9]+$ && "$u2" =~ ^[0-9]+$ ]]; then
-                local active1=$((u1 + n1 + s1))
-                local active2=$((u2 + n2 + s2))
-                local total1=$((active1 + i1 + iow1 + irq1 + soft1 + steal1))
-                local total2=$((active2 + i2 + iow2 + irq2 + soft2 + steal2))
-                
-                local active_diff=$((active2 - active1))
-                local total_diff=$((total2 - total1))
-                
-                if [[ $total_diff -gt 0 ]]; then
-                    cpu_raw=$(( (active_diff * 100) / total_diff ))
-                fi
-            fi
+        if [[ $hours -gt 0 ]]; then
+            time_str="${hours} hour "
         fi
-        
-        # RAM Polling (Pure Bash parsing of /proc/meminfo)
-        local meminfo=$(su -c "cat /proc/meminfo 2>/dev/null")
-        local mem_total_kb=0
-        local mem_avail_kb=0
-        local mem_free_kb=0
-        local mem_cached_kb=0
-        
-        while IFS= read -r line; do
-            if [[ "$line" == MemTotal:* ]]; then
-                mem_total_kb="${line//[^0-9]/}"
-            elif [[ "$line" == MemAvailable:* ]]; then
-                mem_avail_kb="${line//[^0-9]/}"
-            elif [[ "$line" == MemFree:* ]]; then
-                mem_free_kb="${line//[^0-9]/}"
-            elif [[ "$line" == Cached:* ]]; then
-                mem_cached_kb="${line//[^0-9]/}"
-            fi
-        done <<< "$meminfo"
-        
-        if [[ -z "$mem_avail_kb" || "$mem_avail_kb" -eq 0 ]]; then
-            mem_avail_kb=$((mem_free_kb + mem_cached_kb))
+        if [[ $minutes -gt 0 || $hours -gt 0 ]]; then
+            time_str="${time_str}${minutes} mins "
         fi
-        
-        local mem_total="N/A"
-        local mem_used="N/A"
-        if [[ "$mem_total_kb" =~ ^[0-9]+$ && "$mem_total_kb" -gt 0 ]]; then
-            mem_total=$((mem_total_kb / 1024))
-            local mem_used_kb=$((mem_total_kb - mem_avail_kb))
-            mem_used=$((mem_used_kb / 1024))
-        fi
-        
-        # Storage Polling (Using Android's native df via /system/bin/df and pure bash parsing)
-        local storage_lines=$(su -c "/system/bin/df /data 2>/dev/null")
-        local storage_info=""
-        while IFS= read -r line; do
-            if [[ -n "$line" && "$line" != *"Filesystem"* ]]; then
-                storage_info="$line"
-            fi
-        done <<< "$storage_lines"
-        
-        local storage_total="N/A"
-        local storage_used="N/A"
-        if [[ -n "$storage_info" ]]; then
-            read -r _ s_tot_kb s_used_kb _ <<< "$storage_info"
-            
-            local clean_tot="${s_tot_kb//[^0-9]/}"
-            local clean_usd="${s_used_kb//[^0-9]/}"
-            
-            if [[ -n "$clean_tot" && "$clean_tot" == "$s_tot_kb" && -n "$clean_usd" && "$clean_usd" == "$s_used_kb" ]]; then
-                local tot_gb=$((clean_tot / 1048576))
-                local tot_dec=$(((clean_tot % 1048576) * 10 / 1048576))
-                
-                local usd_gb=$((clean_usd / 1048576))
-                local usd_dec=$(((clean_usd % 1048576) * 10 / 1048576))
-                
-                storage_total="${tot_gb}.${tot_dec}G"
-                storage_used="${usd_gb}.${usd_dec}G"
-            else
-                if [[ -n "$s_tot_kb" && -n "$s_used_kb" ]]; then
-                    storage_total="$s_tot_kb"
-                    storage_used="$s_used_kb"
-                fi
-            fi
-        fi
-        
-        # Device details
-        local dev_model=$(getprop ro.product.model 2>/dev/null || echo "Unknown Device")
-        local dev_manu=$(getprop ro.product.manufacturer 2>/dev/null || echo "")
-        
-        # We need to overwrite a specific block of lines statically so the prompt doesn't jump
-        # Move cursor up 11 lines to the start of the dynamic block, redraw, then move back down.
-        # However, to avoid terminal clutter, it's safer to just redraw the whole monitor cleanly if it's the interval,
-        # OR use specific ANSI absolute/relative drops. Since Termux handles `\033[<N>A` (cursor up) well:
-        
-        echo -ne "\033[s" # Save cursor position
-        
-        # Let's clear the screen slightly, but a full redraw is cleaner for Android Termux since sizing varies.
-        # Actually, `tput cup` or ANSI absolute positioning is best. We'll redraw the whole screen smoothly if we must,
-        # but to avoid flicker, let's just clear the screen entirely every few seconds.
-        # For a truly smooth experience, we'll redraw only the data block.
-        
-        # For simplicity and robust display on Termux, let's just clear and redraw the whole screen cleanly.
-        show_header "S Y S T E M   A C T I V E"
-        
-        echo -e "Device Name   : \e[1;36m${dev_manu} ${dev_model}\e[0m"
-        echo -e "CPU Usage     : \e[1;33m${cpu_raw}%\e[0m"
-        echo -e "Storage Usage : \e[1;33m${storage_used} of ${storage_total}\e[0m"
-        echo -e "RAM Usage     : \e[1;33m${mem_used}MB of ${mem_total}MB\e[0m"
-        echo ""
-        echo -e "Connected to Game ID  : \e[1;32m${GAME_ID}\e[0m"
-        echo -e "Time Lapsed Connected : \e[1;32m${time_str}\e[0m"
-        echo ""
-        echo -e "If you want to stop Write \e[1;31mStop\e[0m :"
-        
-        # Restore prompt placeholder at the bottom purely for the visual
-        echo -ne "> " 
+        time_str="${time_str}${seconds} secs"
+
+        printf "\r\e[32mTime we are connected to game [ %s ] | Current Game ID: \e[1;33m%s\e[0m" "$time_str" "$GAME_ID"
     fi
 }
 
@@ -362,7 +243,32 @@ is_google_signin_focused() {
     fi
 }
 
-
+# Function to check if Roblox dropped back to the Main Menu (Game crashed, but app is open)
+is_roblox_in_main_menu() {
+    # Check each package individually
+    for pkg in "${TARGET_PACKAGES[@]}"; do
+        local pid=$(su -c "pidof $pkg" 2>/dev/null)
+        if [[ -z "$pid" ]]; then
+            continue # If this specific one is completely closed, skip to next package
+        fi
+        
+        # Grace period: Wait 45 seconds after launch before assuming the game has crashed
+        local current_time=$(date +%s)
+        if [[ $((current_time - LAST_LAUNCH_TIME)) -lt 45 ]]; then
+            return 1 # Assume it's still loading safely
+        fi
+        
+        # Check if the focused window is the React Main Menu instead of a 3D Game Surface
+        local focused_window=$(su -c "dumpsys window displays | grep -E 'mCurrentFocus|mFocusedApp'")
+        
+        # If the focus is explicitly the Roblox React Home/Menu UI, it means we dropped out of the game
+        if echo "$focused_window" | grep -qiE "$pkg/(.*ActivityReact.*|.*MainActivity.*)"; then
+            return 0 # True, we are stuck on the main menu
+        fi
+    done
+    
+    return 1 # False, none are stuck on the menu
+}
 
 launch_game() {
     print_msg "\e[33mEnsuring Roblox packages are closed before launch...\e[0m"
@@ -385,6 +291,7 @@ launch_game() {
         
         # Check if Google caught the intent and threw a sign-in wall
         if is_google_signin_focused; then
+            echo ""
             print_msg "\e[35m[!] Google window has been detected.\e[0m"
             print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
             # Simulate pressing the Android 'Back' button to close the popup
@@ -403,8 +310,9 @@ launch_game() {
         RETRY_COUNT=$((RETRY_COUNT + 1))
         
         if [[ $RETRY_COUNT -ge 6 ]]; then
+            echo ""
             print_msg "\e[31m[CRITICAL FAILURE] Roblox failed to launch 6 times consecutively.\e[0m"
-            print_msg "\e[33mPausing REblox to prevent CPU thermal overload.\e[0m"
+            print_msg "\e[33mPausing auto-reconnector to prevent CPU thermal overload.\e[0m"
             print_msg "\e[36mType 'resume' if you want to force try again.\e[0m"
             IS_PAUSED=1
         else
@@ -496,7 +404,7 @@ trigger_webhook() {
         { "name": "🧩 Google Sign-Ins", "value": "\`$TOTAL_GOOGLE_POPUPS\`", "inline": true },
         { "name": "📊 Device RAM", "value": "\`${mem_used}MB / ${mem_total}MB\`", "inline": true }
       ],
-      "footer": { "text": "REblox Analytics" }
+      "footer": { "text": "Termux Reconnector Analytics" }
     }
   ]
 }
@@ -515,10 +423,9 @@ EOF
 }
 
 # --- GUI Menu ---
-show_header() {
-    local page_title="$1"
+show_menu() {
     clear
-    echo -e "${GRAY}------------------ REblox - BY RiTiKM416 --------------------${NORMAL}\n"
+    echo -e "${GRAY}------------------ TERMUX RECONNECTOR - BY RiTiKM416 --------------------${NORMAL}\n"
     
     echo -e "${MAG}  ____  _____ _     _             ${NORMAL}"
     echo -e "${MAG} |  _ \| ____| |__ | | _____  __  ${NORMAL}"
@@ -526,18 +433,8 @@ show_header() {
     echo -e "${CYAN} |  _ <| |___| |_) | | (_) >  <   ${NORMAL}"
     echo -e "${CYAN} |_| \_\_____|_.__/|_|\___/_/\_\  ${NORMAL}\n"
     
-    if [[ -n "$page_title" ]]; then
-        # Calculate padding to center the title roughly (assuming 42 chars width for the divider)
-        local title_len=${#page_title}
-        local pad_len=$(( (42 - title_len) / 2 ))
-        local padding=$(printf '%*s' "$pad_len" '')
-        echo -e "${BOLD}${padding}${page_title}${NORMAL}"
-        echo -e "${GRAY}==========================================${NORMAL}\n"
-    fi
-}
-
-show_menu() {
-    show_header "H O M E   P A G E"
+    echo -e "${BOLD}            H O M E   P A G E     ${NORMAL}"
+    echo -e "${GRAY}==========================================${NORMAL}\n"
     
     echo -e "  ${CYAN}[1]${NORMAL} Start Reconnector"    
     echo -e "  ${CYAN}[2]${NORMAL} Create a config"
@@ -555,9 +452,11 @@ show_menu() {
     case $menu_choice in
         1)
             # 1. Start Reconnector (Quick Start)
-            show_header "Q U I C K   S T A R T"
+            clear
+            echo -e "\e[1;36mStarting Quick Reconnector...\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
             
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local available_pkgs=()
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             
@@ -571,43 +470,20 @@ show_menu() {
             local i=1
             for pkg in $raw_pkgs; do
                 available_pkgs+=("$pkg")
-                echo -e "  \e[1;36m${i}.\e[0m \e[1;33m$pkg\e[0m"
+                echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
                 ((i++))
             done
             
             echo ""
-            echo -e "  \e[1;31m0.\e[0m \e[1;37mAfter selecting Packages Select 0 to proceed.\e[0m"
-            echo ""
+            echo -e "\e[36mEnter the numbers of the packages you want to monitor (e.g. '1 2'):\e[0m"
+            read -p "> " pkg_selections
             
             TARGET_PACKAGES=()
-            while true; do
-                if [[ ${#TARGET_PACKAGES[@]} -gt 0 ]]; then
-                    echo -e "\e[32mCurrently Selected:\e[0m ${TARGET_PACKAGES[@]}"
+            for sel in $pkg_selections; do
+                local idx=$((sel - 1))
+                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
                 fi
-                read -p "Select Roblox packages : " pkg_selections
-                
-                local finish=0
-                for sel in $pkg_selections; do
-                    if [[ "$sel" == "0" ]]; then
-                        finish=1
-                        break
-                    fi
-                    local idx=$((sel - 1))
-                    if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
-                        local exists=0
-                        for added in "${TARGET_PACKAGES[@]}"; do
-                            if [[ "$added" == "${available_pkgs[$idx]}" ]]; then exists=1; fi
-                        done
-                        if [[ $exists -eq 0 ]]; then
-                            TARGET_PACKAGES+=("${available_pkgs[$idx]}")
-                        fi
-                    fi
-                done
-                
-                if [[ $finish -eq 1 ]]; then
-                    break
-                fi
-                echo ""
             done
             
             if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
@@ -621,7 +497,9 @@ show_menu() {
             read -p "Enter Target Game ID (Ex: 9587807821): " GAME_ID
             
             echo ""
-            read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
+            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes.\e[0m"
+            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
+            read -p "> " timer_input
             
             if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                 INTENTIONAL_CRASH_TIMER=0
@@ -640,10 +518,12 @@ show_menu() {
             ;;
         2)
             # 2. Create a config
-            show_header "C R E A T E   C O N F I G"
+            clear
+            echo -e "\e[1;36mCreating New Configuration...\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
             
             # Step 1: Detect Packages
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local available_pkgs=()
             
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
@@ -658,43 +538,21 @@ show_menu() {
             local i=1
             for pkg in $raw_pkgs; do
                 available_pkgs+=("$pkg")
-                echo -e "  \e[1;36m${i}.\e[0m \e[1;33m$pkg\e[0m"
+                echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
                 ((i++))
             done
             
             echo ""
-            echo -e "  \e[1;31m0.\e[0m \e[1;37mAfter selecting Packages Select 0 to proceed.\e[0m"
-            echo ""
+            echo -e "\e[36mEnter the numbers of the packages you want to monitor.\e[0m"
+            echo -e "\e[36mSeparate with spaces (e.g. '1 2 4'):\e[0m"
+            read -p "> " pkg_selections
             
             TARGET_PACKAGES=()
-            while true; do
-                if [[ ${#TARGET_PACKAGES[@]} -gt 0 ]]; then
-                    echo -e "\e[32mCurrently Selected:\e[0m ${TARGET_PACKAGES[@]}"
+            for sel in $pkg_selections; do
+                local idx=$((sel - 1))
+                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
                 fi
-                read -p "Select Roblox packages : " pkg_selections
-                
-                local finish=0
-                for sel in $pkg_selections; do
-                    if [[ "$sel" == "0" ]]; then
-                        finish=1
-                        break
-                    fi
-                    local idx=$((sel - 1))
-                    if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
-                        local exists=0
-                        for added in "${TARGET_PACKAGES[@]}"; do
-                            if [[ "$added" == "${available_pkgs[$idx]}" ]]; then exists=1; fi
-                        done
-                        if [[ $exists -eq 0 ]]; then
-                            TARGET_PACKAGES+=("${available_pkgs[$idx]}")
-                        fi
-                    fi
-                done
-                
-                if [[ $finish -eq 1 ]]; then
-                    break
-                fi
-                echo ""
             done
             
             if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
@@ -710,7 +568,9 @@ show_menu() {
             
             # Step 3: Intentional Crash Timer
             echo ""
-            read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
+            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes (e.g. 30).\e[0m"
+            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
+            read -p "> " timer_input
             
             if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                 INTENTIONAL_CRASH_TIMER=0
@@ -744,7 +604,9 @@ show_menu() {
             ;;
         3)
             # 3. Load existing Config
-            show_header "L O A D   C O N F I G"
+            clear
+            echo -e "\e[1;36mSaved Configurations:\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
             
             local conf_files=()
             local i=1
@@ -787,7 +649,9 @@ show_menu() {
             ;;
         4)
             # 4. Delete Config
-            show_header "D E L E T E   C O N F I G"
+            clear
+            echo -e "\e[1;31mDelete Configuration\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
             
             local conf_files=()
             local i=1
@@ -834,8 +698,10 @@ show_menu() {
             ;;
         5)
             # 5. Select all available Roblox
-            show_header "G A M E   M A N A G E R"
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
+            clear
+            echo -e "\e[1;36mSelect all available Roblox\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             if [[ -z "$raw_pkgs" ]]; then
                 echo -e "\e[31mNo Roblox packages detected!\e[0m"
@@ -869,7 +735,7 @@ show_menu() {
                 case $rblx_action in
                     1)
                         read -p "Enter Target Game ID: " GAME_ID
-                        read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
+                        read -p "Enter Reconnect Timer (mins, or 'none'): " timer_input
                         if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                             INTENTIONAL_CRASH_TIMER=0
                         else
@@ -941,7 +807,9 @@ show_menu() {
             ;;
         6)
             # 6. Setup Discord Webhook
-            show_header "D I S C O R D   W E B H O O K"
+            clear
+            echo -e "\e[1;36mSetup Discord Webhook\e[0m"
+            echo -e "\e[1;30m--------------------------------------\e[0m"
             
             # Check global env file for webhook
             local env_hook=$(grep "GLOBAL_WEBHOOK=" "$HOME/.roblox_reconnector.conf" 2>/dev/null | cut -d'"' -f2)
@@ -1034,7 +902,6 @@ show_menu() {
             ;;
         7)
             # 7. Logout Roblox
-            show_header "L O G O U T   R O B L O X"
             echo -e "\e[33mScanning and logging out all installed Roblox accounts...\e[0m"
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             for pkg in $raw_pkgs; do
@@ -1047,7 +914,7 @@ show_menu() {
         8)
             # 8. Exit Application
             echo -e "\e[36mExiting. Goodbye!\e[0m"
-            su -c "am force-stop com.termux" 2>/dev/null || kill -9 $PPID || exit 0
+            exit 0
             ;;
         *)
             echo -e "\e[31mInvalid option selected.\e[0m"
@@ -1090,7 +957,7 @@ while true; do
         while [[ $IS_PAUSED -eq 1 ]]; do
             read -p "Type 'Resume' to continue, 'Menu' for main screen, or 'Exit' to quit: " pause_input
             if [[ "${pause_input,,}" == "resume" ]]; then
-                print_msg "\e[33mResuming REblox...\e[0m"
+                print_msg "\e[33mResuming auto-reconnector...\e[0m"
                 IS_PAUSED=0
                 if is_roblox_running; then
                     print_msg "\e[36mRoblox is still running. Resuming tracking.\e[0m"
@@ -1111,19 +978,15 @@ while true; do
                 launch_game
                 break
             elif [[ "${pause_input,,}" == "exit" ]]; then
-                print_msg "\e[36mExiting REblox.\e[0m"
-                su -c "am force-stop com.termux" 2>/dev/null || kill -9 $PPID || exit 0
+                print_msg "\e[36mExiting Roblox Auto-Reconnector.\e[0m"
+                exit 0
             fi
         done
     fi
 
     if [[ $IS_PAUSED -eq 0 ]]; then
-        # Redraw interval for dynamic stats
-        if [[ $IS_RUNNING -eq 1 ]]; then
-            if (( LOOP_COUNTER % 2 == 0 )); then
-                update_logger
-            fi
-        fi
+        # Update timer display every second
+        update_logger
         
         # Every 5 seconds, poll process and root checks (prevents Termux crashing from overload)
         if (( LOOP_COUNTER % 5 == 0 )); then
@@ -1175,7 +1038,18 @@ while true; do
                 fi
             fi
             
-
+            # Check if the game crashed but the Roblox app remained open (stuck on Main Menu)
+            if [[ $IS_RUNNING -eq 1 ]]; then
+                if is_roblox_in_main_menu; then
+                    echo ""
+                    print_msg "\e[31m[!] Roblox dropped to the Main Menu (Game Crash detected).\e[0m"
+                    print_msg "\e[33mReconnecting to Game...\e[0m"
+                    
+                    IS_RUNNING=0
+                    launch_game
+                    continue
+                fi
+            fi
             
             # Continuous background check for Google Sign-in popups
             if [[ $IS_RUNNING -eq 1 ]]; then

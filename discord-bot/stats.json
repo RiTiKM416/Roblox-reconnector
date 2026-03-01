@@ -1,6 +1,12 @@
 {
-    "totalKeysGenerated": 3,
+    "totalKeysGenerated": 4,
     "recentKeys": [
+        {
+            "discordId": "ritikm416",
+            "time": "12:00:40 PM",
+            "timeMs": 1772346639872,
+            "link": "https://auth.platorelay.com/a?d=mYA0KfY6JqGhCv4LWIMto3ItnYTtmpJ7ly9qkZtPohdFzVL7FzqFBfvDdAFkmwGjlg7YcqKhjtjFrEuIs2uoRcHkEat1fcP3xuntqODKB9vKOMnqJFG3clMmCLeIHVjnKtge3XzO9edFzK4BmVF8sIQNkbRItbCR4mYMaofbgMqUekA1CCJMdRyQl6jj6R5G36aiSY7VQBOw3hCJEFG0i34LRJR8qAKORQeCDIfunxRAtxFnesYLWcYYD9niv2DJS5X61LuacA9y8xLcWQmcnNoQEgMc891jxd2oC71SCn9KOzeH1cqBJo2p75wotZjbfGJRNR4ufSCrTe1YYybrPd1xys3uKWyQgGAqbMFTh2eu29jPd6RVx5NhxMFxj9vy27IhMJ9uAH3P31PPd8pk1fDlWwrvP8"
+        },
         {
             "discordId": "Web Console Admin",
             "time": "6:28:48 PM",
@@ -18,22 +24,6 @@
             "time": "1:25:53 AM",
             "timeMs": 1772222153083,
             "link": "https://auth.platorelay.com/a?d=ktPUVMxUt0jPPCMyb9Xcth0clcoHRN5erdnRcjGrMl3lfznI7czY5yDtK7euM1zGFvQA7RzNr0qYHS6R8BRimfcwlBqm33Jpheux1Bihj5IUGXYD3J11Sk4nWHVFRUJ1RzwfbqwIUSkeOjCSMiQlfsvJ6G6ejBSIHUB83iMb84FpGGiEZOtT3toFtaQNufkw0fo4aCkg0BWftsREdiMSHb5hb2C0M26o3oWUKNfiwMMydEsF0k1avabLPxSZmkYV0R731EPQL6JCkjSAQvLnBWm8ZKMEbvWVx7wx6hUNHu0pSLgEI92OlI5wKYEYbPderyLErYeaJKsVmPLYreBCQu822YspAA7Ok99y3GFTLPSFnYeN7sEuXWtE3qcvzBhNKB1p0jQeMvr6o6Bw1o5zX0WQhoaWJt"
-        }
-    ],
-    "backupKeys": [
-        {
-            "discordId": "Web Console Admin",
-            "time": "6:39:41 PM",
-            "timeMs": 1772284181776,
-            "key": "ADMIN_GEN_Y9GI75GLIJX3P9O3",
-            "hwid": "BYPASS_HWID_NOT_REQUIRED"
-        },
-        {
-            "discordId": "user123",
-            "time": "5:32:40 PM",
-            "timeMs": 1772280160260,
-            "key": "test_key_123",
-            "hwid": "test_hwid"
         }
     ]
 }

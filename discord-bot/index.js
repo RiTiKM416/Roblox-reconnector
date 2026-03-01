@@ -58,7 +58,7 @@ const saveStats = () => {
 // --- Custom Embed Configurator ---
 const embedConfigPath = path.join(__dirname, 'embed_config.json');
 let embedConfig = {
-    title: 'Termux Reconnector Authentication',
+    title: 'REblox Authentication',
     description: 'Click one of the buttons below to interact with the Free Key System.',
     color: '#38bdf8',
     image: '',
@@ -186,7 +186,7 @@ app.post('/api/admin/update-embed', express.urlencoded({ extended: true }), (req
         const { title, description, color, image, thumbnail } = req.body;
 
         embedConfig = {
-            title: title || 'Termux Reconnector Authentication',
+            title: title || 'REblox Authentication',
             description: description || 'Click one of the buttons below to interact with the Free Key System.',
             color: color || '#38bdf8',
             image: image || '',
@@ -504,7 +504,7 @@ client.on('interactionCreate', async interaction => {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle(embedConfig.title || 'Termux Reconnector Authentication')
+                .setTitle(embedConfig.title || 'REblox Authentication')
                 .setDescription(embedConfig.description || 'Click one of the buttons below to interact with the Free Key System.')
                 .setColor(embedColor)
                 .addFields(

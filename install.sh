@@ -40,7 +40,7 @@ if [[ -z "$DEVICE_ID" ]]; then
 fi
 
 echo "======================================"
-echo "    Roblox Termux Auto-Reconnector    "
+echo "                REblox                "
 echo "                Setup                 "
 echo "======================================"
 

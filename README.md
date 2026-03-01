@@ -1,4 +1,4 @@
-# Roblox Termux Auto-Reconnector
+# REblox
 
 A robust, GUI-based Termux automation tool designed to connect Rooted Android environments directly to a specific Roblox Game ID. It actively monitors the game state and automatically reconnects if the application crashes or drops to the main menu.
 
