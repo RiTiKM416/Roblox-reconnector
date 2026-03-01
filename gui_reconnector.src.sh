@@ -509,9 +509,7 @@ show_menu() {
             read -p "Enter Target Game ID (Ex: 9587807821): " GAME_ID
             
             echo ""
-            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes.\e[0m"
-            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
-            read -p "> " timer_input
+            read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
             
             if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                 INTENTIONAL_CRASH_TIMER=0
@@ -600,9 +598,7 @@ show_menu() {
             
             # Step 3: Intentional Crash Timer
             echo ""
-            echo -e "\e[36mEnter Intentional Crash/Relaunch Timer in Minutes (e.g. 30).\e[0m"
-            echo -e "\e[36mLeave blank or type 'none' to disable.\e[0m"
-            read -p "> " timer_input
+            read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
             
             if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                 INTENTIONAL_CRASH_TIMER=0
@@ -761,7 +757,7 @@ show_menu() {
                 case $rblx_action in
                     1)
                         read -p "Enter Target Game ID: " GAME_ID
-                        read -p "Enter Reconnect Timer (mins, or 'none'): " timer_input
+                        read -p "Reconnect Timer ( eg 10m 30m 120m ) : " timer_input
                         if [[ -z "$timer_input" || "${timer_input,,}" == "none" ]]; then
                             INTENTIONAL_CRASH_TIMER=0
                         else
