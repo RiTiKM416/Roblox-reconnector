@@ -59,22 +59,14 @@ box() {
 }
 
 show_active_monitor() {
-  clear
-  echo -e "${GRAY}------------------ TERMUX RECONNECTOR - SYSTEM ACTIVE -------------------${NORMAL}\n"
-  
-  echo -e "${MAG}  ____       _     _             ${NORMAL}"
-  echo -e "${MAG} |  _ \ ___ | |__ | | _____  __  ${NORMAL}"
-  echo -e "${BLUE} | |_) / _ \| '_ \| |/ _ \ \/ /  ${NORMAL}"
-  echo -e "${CYAN} |  _ < (_) | |_) | | (_) >  <   ${NORMAL}"
-  echo -e "${CYAN} |_| \_\___/|_.__/|_|\___/_/\_\  ${NORMAL}\n"
-  
-  echo -e "${BOLD}      S Y S T E M   A C T I V E ${NORMAL}"
-  echo -e "${GRAY}==========================================${NORMAL}\n"
-  
-  echo -e "Game ID locked: ${CYAN}${GAME_ID:-none}${NORMAL}\n"
-  echo -e "Type '${RED}Stop${NORMAL}' at any time to pause the monitor.\n"
-  echo -e "${GRAY}$(date) — Press Ctrl+C to quit monitor.${NORMAL}\n"
-  echo -e "${GRAY}==========================================${NORMAL}\n"
+    # We call update_logger to trigger the initial visual draw instead of relying on this static block
+    # This prevents the static block from being drawn and then overwritten poorly.
+    if [[ $IS_RUNNING -eq 1 ]]; then
+        update_logger
+    else
+        show_header "S Y S T E M   A C T I V E"
+        echo -e "Initializing Hardware Monitors...\n"
+    fi
 }
 
 show_progress() {
@@ -200,7 +192,8 @@ verify_platoboost_key() {
 }
 
 print_msg() {
-    printf "\r\033[K%s\n" "$1"
+    # Print the line clearly and erase the remainder of the line
+    echo -e "\r\033[K$1"
 }
 
 update_logger() {
@@ -212,15 +205,55 @@ update_logger() {
         local seconds=$((elapsed % 60))
 
         local time_str=""
-        if [[ $hours -gt 0 ]]; then
-            time_str="${hours} hour "
-        fi
-        if [[ $minutes -gt 0 || $hours -gt 0 ]]; then
-            time_str="${time_str}${minutes} mins "
-        fi
-        time_str="${time_str}${seconds} secs"
-
-        printf "\r\e[32mTime we are connected to game [ %s ] | Current Game ID: \e[1;33m%s\e[0m" "$time_str" "$GAME_ID"
+        if [[ $hours -gt 0 ]]; then time_str="${hours}h "; fi
+        if [[ $minutes -gt 0 || $hours -gt 0 ]]; then time_str="${time_str}${minutes}m "; fi
+        time_str="${time_str}${seconds}s"
+        
+        # Hardware polling
+        local mem_alloc=$(su -c "free -m" | grep Mem)
+        local mem_total=$(echo "$mem_alloc" | awk '{print $2}')
+        local mem_used=$(echo "$mem_alloc" | awk '{print $3}')
+        
+        # CPU Polling (via top, quick snapshot)
+        local cpu_raw=$(su -c "top -n 1 -d 1" 2>/dev/null | head -n 3 | grep -i '%cpu' | awk '{print $2}')
+        if [[ -z "$cpu_raw" ]]; then cpu_raw="N/A"; fi
+        
+        # Storage Polling
+        local storage_alloc=$(su -c "df -h /data" | tail -n 1)
+        local storage_total=$(echo "$storage_alloc" | awk '{print $2}')
+        local storage_used=$(echo "$storage_alloc" | awk '{print $3}')
+        
+        # Device details
+        local dev_model=$(getprop ro.product.model 2>/dev/null || echo "Unknown Device")
+        local dev_manu=$(getprop ro.product.manufacturer 2>/dev/null || echo "")
+        
+        # We need to overwrite a specific block of lines statically so the prompt doesn't jump
+        # Move cursor up 11 lines to the start of the dynamic block, redraw, then move back down.
+        # However, to avoid terminal clutter, it's safer to just redraw the whole monitor cleanly if it's the interval,
+        # OR use specific ANSI absolute/relative drops. Since Termux handles `\033[<N>A` (cursor up) well:
+        
+        echo -ne "\033[s" # Save cursor position
+        
+        # Let's clear the screen slightly, but a full redraw is cleaner for Android Termux since sizing varies.
+        # Actually, `tput cup` or ANSI absolute positioning is best. We'll redraw the whole screen smoothly if we must,
+        # but to avoid flicker, let's just clear the screen entirely every few seconds.
+        # For a truly smooth experience, we'll redraw only the data block.
+        
+        # For simplicity and robust display on Termux, let's just clear and redraw the whole screen cleanly.
+        show_header "S Y S T E M   A C T I V E"
+        
+        echo -e "Device Name   : \e[1;36m${dev_manu} ${dev_model}\e[0m"
+        echo -e "CPU Usage     : \e[1;33m${cpu_raw}%\e[0m"
+        echo -e "Storage Usage : \e[1;33m${storage_used} of ${storage_total}\e[0m"
+        echo -e "RAM Usage     : \e[1;33m${mem_used}MB of ${mem_total}MB\e[0m"
+        echo ""
+        echo -e "Connected to Game ID  : \e[1;32m${GAME_ID}\e[0m"
+        echo -e "Time Lapsed Connected : \e[1;32m${time_str}\e[0m"
+        echo ""
+        echo -e "If you want to stop Write \e[1;31mStop\e[0m :"
+        
+        # Restore prompt placeholder at the bottom purely for the visual
+        echo -ne "> " 
     fi
 }
 
@@ -271,7 +304,6 @@ launch_game() {
         
         # Check if Google caught the intent and threw a sign-in wall
         if is_google_signin_focused; then
-            echo ""
             print_msg "\e[35m[!] Google window has been detected.\e[0m"
             print_msg "\e[33mDismissing Google Sign-In prompt...\e[0m"
             # Simulate pressing the Android 'Back' button to close the popup
@@ -290,7 +322,6 @@ launch_game() {
         RETRY_COUNT=$((RETRY_COUNT + 1))
         
         if [[ $RETRY_COUNT -ge 6 ]]; then
-            echo ""
             print_msg "\e[31m[CRITICAL FAILURE] Roblox failed to launch 6 times consecutively.\e[0m"
             print_msg "\e[33mPausing auto-reconnector to prevent CPU thermal overload.\e[0m"
             print_msg "\e[36mType 'resume' if you want to force try again.\e[0m"
@@ -1006,8 +1037,12 @@ while true; do
     fi
 
     if [[ $IS_PAUSED -eq 0 ]]; then
-        # Update timer display every second
-        update_logger
+        # Redraw interval for dynamic stats
+        if [[ $IS_RUNNING -eq 1 ]]; then
+            if (( LOOP_COUNTER % 2 == 0 )); then
+                update_logger
+            fi
+        fi
         
         # Every 5 seconds, poll process and root checks (prevents Termux crashing from overload)
         if (( LOOP_COUNTER % 5 == 0 )); then
