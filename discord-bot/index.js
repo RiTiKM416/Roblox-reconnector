@@ -329,6 +329,8 @@ app.post('/api/admin/reset-hwid', express.urlencoded({ extended: true }), async 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
 });
+client.on('debug', console.log);
+client.on('error', console.error);
 
 const commands = [
     {
@@ -582,6 +584,7 @@ app.listen(PORT, () => {
     console.log(`[Web] Admin Dashboard running on http://localhost:${PORT}`);
     console.log(`[Web] Use username: ${ADMIN_USER} | pass: ${ADMIN_PASS}`);
     // Start bot on boot
+    console.log(`[Bot] Attempting to log in to Discord gateway... (Token Length: ${TOKEN ? TOKEN.length : 0})`);
     client.login(TOKEN).catch(e => {
         console.error("[Bot] Auto-Login Failed on Boot:", e.message || e);
         appState.botOnline = false;
