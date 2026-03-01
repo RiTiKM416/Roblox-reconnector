@@ -1,4 +1,6 @@
 require('dotenv').config();
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Forces Node to use IPv4 - bypasses Render's IPv6 blackhole
 const { Client, GatewayIntentBits, REST, Routes, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const express = require('express');
 const auth = require('basic-auth');
@@ -327,7 +329,9 @@ app.post('/api/admin/reset-hwid', express.urlencoded({ extended: true }), async 
 
 // --- Discord Bot ---
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+    ws: { properties: { browser: 'Discord iOS' } }, // Spoofs mobile device to evade generic bot bans
+    rest: { timeout: 20000, retries: 3 }
 });
 client.on('debug', console.log);
 client.on('error', console.error);
