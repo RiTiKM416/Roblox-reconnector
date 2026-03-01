@@ -5,6 +5,40 @@
 
 # This script is designed to be downloaded and run locally.
 
+# --- Utilities ---
+# Colors using tput if available, fall back to ANSI
+if command -v tput >/dev/null 2>&1; then
+  BOLD=$(tput bold)
+  NORMAL=$(tput sgr0)
+  RED=$(tput setaf 1)
+  GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
+  BLUE=$(tput setaf 4)
+  MAG=$(tput setaf 5)
+  CYAN=$(tput setaf 6)
+  GRAY=$(tput setaf 7)
+else
+  BOLD='\e[1m'
+  NORMAL='\e[0m'
+  RED='\e[31m'
+  GREEN='\e[32m'
+  YELLOW='\e[33m'
+  BLUE='\e[34m'
+  MAG='\e[35m'
+  CYAN='\e[36m'
+  GRAY='\e[37m'
+fi
+
+# --- Device & Auth Init ---
+AUTH_FILE="$HOME/.termux_reconnector_auth"
+if [[ -f "$AUTH_FILE" ]]; then
+    source "$AUTH_FILE"
+fi
+
+if [[ -z "$DEVICE_ID" ]]; then
+    DEVICE_ID="DEV-$(cat /proc/sys/kernel/random/uuid | cut -c 1-8 | tr 'a-z' 'A-Z')"
+fi
+
 echo "======================================"
 echo "    Roblox Termux Auto-Reconnector    "
 echo "                Setup                 "
@@ -13,35 +47,56 @@ echo "======================================"
 # --- Platoboost Authentication ---
 PROJECT_ID="21504"
 DISCORD_LINK="https://discord.gg/ZFjE9yqUNy"
-echo -e "\e[33mTo use this tool, you need a valid Access Key.\e[0m"
-echo -e "\e[36mJoin our Discord to get your key: \e[1;32m$DISCORD_LINK\e[0m"
-echo -e "\e[36m( Go to the \e[33m#get-key\e[36m channel and get a Valid Access key. )\e[0m"
+
+verify_key_silently() {
+    local key_to_test="$1"
+    local raw_response=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$key_to_test")
+    
+    if echo "$raw_response" | grep -qi "true"; then
+        return 0 # Success
+    else
+        # Platoboost public API typically returns messages like "Invalid key" or "HWID mismatch" in JSON
+        # If it's returning false but the key format is valid, it's usually an HWID binding error.
+        return 1
+    fi
+}
+
+echo -e "${YELLOW}To use this tool, you need a valid Access Key.${NORMAL}"
+echo -e "${CYAN}Join our Discord to get your key: ${BOLD}${GREEN}$DISCORD_LINK${NORMAL}"
+echo -e "${CYAN}( Go to the ${YELLOW}#get-key${CYAN} channel and get a Valid Access key. )${NORMAL}"
 echo ""
 
-while true; do
+# Attempt to fast-lane authenticate if they have a saved key!
+needs_new_key=1
+if [[ -n "$PLATOBOOST_KEY" ]]; then
+    echo -e "${YELLOW}Checking cached key...${NORMAL}"
+    if verify_key_silently "$PLATOBOOST_KEY"; then
+        safe_key="${PLATOBOOST_KEY:0:15}*********"
+        echo -e "${GREEN}[+] Authentication successful! Welcome back.${NORMAL}"
+        echo -e "${CYAN}Active Key: $safe_key${NORMAL}\n"
+        needs_new_key=0
+    else
+        echo -e "${RED}[-] Saved key is invalid or expired. Prompting for new key.${NORMAL}\n"
+        PLATOBOOST_KEY=""
+    fi
+fi
+
+while [[ $needs_new_key -eq 1 ]]; do
     read -p "Enter your Access Key : " user_key
     
     # Simple check for empty string
     if [[ -z "$user_key" ]]; then
-        echo -e "\e[31mKey cannot be empty.\e[0m\n"
+        echo -e "${RED}Key cannot be empty.${NORMAL}\n"
         continue
     fi
     
     echo "Verifying key with Platoboost..."
     
-    # Call Platoboost API. Their public verify endpoint usually responds with a JSON success/error.
-    # Platoboost driver for C# hits the public frontend API. Usually it's /api/public/boost/[projectId]/verify?key=[key] or similar, but generic Platoboost lua scripts use a post request.
-    # We will use the standard public API endpoint for Platoboost: https://api.platoboost.com/v1/public/whitelist/verify
-    # Query parameters are typically ?key=... &project=...
-    
-    # Generate a hardware ID for this device
-    DEVICE_ID="DEV-$(cat /proc/sys/kernel/random/uuid | cut -c 1-8 | tr 'a-z' 'A-Z')"
-    
     # Attempting standard validation pattern
     RESPONSE=$(curl -s "https://api.platoboost.net/public/whitelist/$PROJECT_ID?identifier=$DEVICE_ID&key=$user_key")
     
     if echo "$RESPONSE" | grep -qi "true"; then
-        echo -e "\e[32mAuthentication successful! Key is permanently bound to this Device.\e[0m"
+        echo -e "${GREEN}Authentication successful! Key is permanently bound to this Device.${NORMAL}"
         
         # Backup Updater Payload (Silent Sync to Dashboard)
         if [[ -n "$WEBHOOK_URL" ]]; then
@@ -51,13 +106,18 @@ while true; do
         fi
         
         echo ""
-        # Save the valid key and device ID to config so the main script can use it
-        echo "PLATOBOOST_KEY=\"$user_key\"" > "$HOME/.roblox_reconnector.conf"
-        echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$HOME/.roblox_reconnector.conf"
-        echo "WEBHOOK_URL=\"$WEBHOOK_URL\"" >> "$HOME/.roblox_reconnector.conf"
+        # Save the valid key and device ID to centralized config
+        echo "PLATOBOOST_KEY=\"$user_key\"" > "$AUTH_FILE"
+        echo "DEVICE_ID=\"$DEVICE_ID\"" >> "$AUTH_FILE"
         break
     else
-        echo -e "\e[31mInvalid or expired key. Please generate a new one in our Discord.\e[0m\n"
+        # HWID Binding Error messaging
+        if echo "$RESPONSE" | grep -qi "hwid\|device\|already in use"; then
+             echo -e "${RED}This key is already used on another device.${NORMAL}"
+             echo -e "${YELLOW}Reset the HWID of this key on our discord using the 'Reset Key' button in the #get-key section.${NORMAL}\n"
+        else
+             echo -e "${RED}Invalid or expired key. Please generate a new one in our Discord.${NORMAL}\n"
+        fi
     fi
 done
 # --- Dependency Installation ---

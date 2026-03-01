@@ -100,8 +100,7 @@ check_root() {
 }
 
 verify_platoboost_key() {
-    clear
-    box "TERMUX RECONNECTOR KEY AUTH" 76
+    show_header "L I C E N S E   A U T H E N T I C A T I O N"
     
     local needs_new_key=0
 
@@ -185,9 +184,15 @@ verify_platoboost_key() {
         if [[ -n "$CURRENT_CONFIG" ]]; then save_config; fi
         sleep 1
     else
-        echo -e "\e[31mInvalid or expired key.\e[0m"
-        echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m"
-        echo ""
+        # HWID Binding Error messaging
+        if echo "$RESPONSE" | grep -qi "hwid\|device\|already in use"; then
+             echo -e "\e[31mThis key is already used on another device.\e[0m"
+             echo -e "\e[33mReset the HWID of this key on our discord using the 'Reset Key' button in the #get-key section.\e[0m\n"
+        else
+             echo -e "\e[31mInvalid or expired key.\e[0m"
+             echo -e "\e[33mGenerate a new key here: \e[1;32m$DISCORD_LINK\e[0m\n"
+        fi
+        
         KEY_EXPIRATION=""
         read -p "Enter your new Access Key : " PLATOBOOST_KEY
         verify_platoboost_key # Recurse until valid
@@ -398,7 +403,8 @@ EOF
 }
 
 # --- GUI Menu ---
-show_menu() {
+show_header() {
+    local page_title="$1"
     clear
     echo -e "${GRAY}------------------ TERMUX RECONNECTOR - BY RiTiKM416 --------------------${NORMAL}\n"
     
@@ -408,8 +414,18 @@ show_menu() {
     echo -e "${CYAN} |  _ <| |___| |_) | | (_) >  <   ${NORMAL}"
     echo -e "${CYAN} |_| \_\_____|_.__/|_|\___/_/\_\  ${NORMAL}\n"
     
-    echo -e "${BOLD}            H O M E   P A G E     ${NORMAL}"
-    echo -e "${GRAY}==========================================${NORMAL}\n"
+    if [[ -n "$page_title" ]]; then
+        # Calculate padding to center the title roughly (assuming 42 chars width for the divider)
+        local title_len=${#page_title}
+        local pad_len=$(( (42 - title_len) / 2 ))
+        local padding=$(printf '%*s' "$pad_len" '')
+        echo -e "${BOLD}${padding}${page_title}${NORMAL}"
+        echo -e "${GRAY}==========================================${NORMAL}\n"
+    fi
+}
+
+show_menu() {
+    show_header "H O M E   P A G E"
     
     echo -e "  ${CYAN}[1]${NORMAL} Start Reconnector"    
     echo -e "  ${CYAN}[2]${NORMAL} Create a config"
@@ -427,9 +443,7 @@ show_menu() {
     case $menu_choice in
         1)
             # 1. Start Reconnector (Quick Start)
-            clear
-            echo -e "\e[1;36mStarting Quick Reconnector...\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "Q U I C K   S T A R T"
             
             echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local available_pkgs=()
@@ -493,9 +507,7 @@ show_menu() {
             ;;
         2)
             # 2. Create a config
-            clear
-            echo -e "\e[1;36mCreating New Configuration...\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "C R E A T E   C O N F I G"
             
             # Step 1: Detect Packages
             echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
@@ -579,9 +591,7 @@ show_menu() {
             ;;
         3)
             # 3. Load existing Config
-            clear
-            echo -e "\e[1;36mSaved Configurations:\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "L O A D   C O N F I G"
             
             local conf_files=()
             local i=1
@@ -624,9 +634,7 @@ show_menu() {
             ;;
         4)
             # 4. Delete Config
-            clear
-            echo -e "\e[1;31mDelete Configuration\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "D E L E T E   C O N F I G"
             
             local conf_files=()
             local i=1
@@ -673,9 +681,7 @@ show_menu() {
             ;;
         5)
             # 5. Select all available Roblox
-            clear
-            echo -e "\e[1;36mSelect all available Roblox\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "G A M E   M A N A G E R"
             echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             if [[ -z "$raw_pkgs" ]]; then
@@ -782,9 +788,7 @@ show_menu() {
             ;;
         6)
             # 6. Setup Discord Webhook
-            clear
-            echo -e "\e[1;36mSetup Discord Webhook\e[0m"
-            echo -e "\e[1;30m--------------------------------------\e[0m"
+            show_header "D I S C O R D   W E B H O O K"
             
             # Check global env file for webhook
             local env_hook=$(grep "GLOBAL_WEBHOOK=" "$HOME/.roblox_reconnector.conf" 2>/dev/null | cut -d'"' -f2)
@@ -877,6 +881,7 @@ show_menu() {
             ;;
         7)
             # 7. Logout Roblox
+            show_header "L O G O U T   R O B L O X"
             echo -e "\e[33mScanning and logging out all installed Roblox accounts...\e[0m"
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             for pkg in $raw_pkgs; do
