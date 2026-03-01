@@ -445,7 +445,7 @@ show_menu() {
             # 1. Start Reconnector (Quick Start)
             show_header "Q U I C K   S T A R T"
             
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
             local available_pkgs=()
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             
@@ -459,20 +459,43 @@ show_menu() {
             local i=1
             for pkg in $raw_pkgs; do
                 available_pkgs+=("$pkg")
-                echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
+                echo -e "  \e[1;36m${i}.\e[0m \e[1;33m$pkg\e[0m"
                 ((i++))
             done
             
             echo ""
-            echo -e "\e[36mEnter the numbers of the packages you want to monitor (e.g. '1 2'):\e[0m"
-            read -p "> " pkg_selections
+            echo -e "  \e[1;31m0.\e[0m \e[1;37mAfter selecting Packages Select 0 to proceed.\e[0m"
+            echo ""
             
             TARGET_PACKAGES=()
-            for sel in $pkg_selections; do
-                local idx=$((sel - 1))
-                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
-                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+            while true; do
+                if [[ ${#TARGET_PACKAGES[@]} -gt 0 ]]; then
+                    echo -e "\e[32mCurrently Selected:\e[0m ${TARGET_PACKAGES[@]}"
                 fi
+                read -p "Select Roblox packages : " pkg_selections
+                
+                local finish=0
+                for sel in $pkg_selections; do
+                    if [[ "$sel" == "0" ]]; then
+                        finish=1
+                        break
+                    fi
+                    local idx=$((sel - 1))
+                    if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                        local exists=0
+                        for added in "${TARGET_PACKAGES[@]}"; do
+                            if [[ "$added" == "${available_pkgs[$idx]}" ]]; then exists=1; fi
+                        done
+                        if [[ $exists -eq 0 ]]; then
+                            TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+                        fi
+                    fi
+                done
+                
+                if [[ $finish -eq 1 ]]; then
+                    break
+                fi
+                echo ""
             done
             
             if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
@@ -510,7 +533,7 @@ show_menu() {
             show_header "C R E A T E   C O N F I G"
             
             # Step 1: Detect Packages
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
             local available_pkgs=()
             
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
@@ -525,21 +548,43 @@ show_menu() {
             local i=1
             for pkg in $raw_pkgs; do
                 available_pkgs+=("$pkg")
-                echo -e "  \e[1;32m[$i]\e[0m \e[1;33m$pkg\e[0m"
+                echo -e "  \e[1;36m${i}.\e[0m \e[1;33m$pkg\e[0m"
                 ((i++))
             done
             
             echo ""
-            echo -e "\e[36mEnter the numbers of the packages you want to monitor.\e[0m"
-            echo -e "\e[36mSeparate with spaces (e.g. '1 2 4'):\e[0m"
-            read -p "> " pkg_selections
+            echo -e "  \e[1;31m0.\e[0m \e[1;37mAfter selecting Packages Select 0 to proceed.\e[0m"
+            echo ""
             
             TARGET_PACKAGES=()
-            for sel in $pkg_selections; do
-                local idx=$((sel - 1))
-                if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
-                    TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+            while true; do
+                if [[ ${#TARGET_PACKAGES[@]} -gt 0 ]]; then
+                    echo -e "\e[32mCurrently Selected:\e[0m ${TARGET_PACKAGES[@]}"
                 fi
+                read -p "Select Roblox packages : " pkg_selections
+                
+                local finish=0
+                for sel in $pkg_selections; do
+                    if [[ "$sel" == "0" ]]; then
+                        finish=1
+                        break
+                    fi
+                    local idx=$((sel - 1))
+                    if [[ $idx -ge 0 && $idx -lt ${#available_pkgs[@]} ]]; then
+                        local exists=0
+                        for added in "${TARGET_PACKAGES[@]}"; do
+                            if [[ "$added" == "${available_pkgs[$idx]}" ]]; then exists=1; fi
+                        done
+                        if [[ $exists -eq 0 ]]; then
+                            TARGET_PACKAGES+=("${available_pkgs[$idx]}")
+                        fi
+                    fi
+                done
+                
+                if [[ $finish -eq 1 ]]; then
+                    break
+                fi
+                echo ""
             done
             
             if [[ ${#TARGET_PACKAGES[@]} -eq 0 ]]; then
@@ -682,7 +727,7 @@ show_menu() {
         5)
             # 5. Select all available Roblox
             show_header "G A M E   M A N A G E R"
-            echo -e "\e[33mScanning for installed Roblox packages...\e[0m"
+            echo -e "\e[33mScanning for installed Roblox packages...\e[0m\n"
             local raw_pkgs=$(su -c "ls /data/data 2>/dev/null | grep -i 'roblox'" | tr -d '\r')
             if [[ -z "$raw_pkgs" ]]; then
                 echo -e "\e[31mNo Roblox packages detected!\e[0m"
