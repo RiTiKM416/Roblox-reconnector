@@ -98,11 +98,25 @@ while [[ $needs_new_key -eq 1 ]]; do
     if echo "$RESPONSE" | grep -qi "true"; then
         echo -e "${GREEN}Authentication successful! Key is permanently bound to this Device.${NORMAL}"
         
-        # Backup Updater Payload (Silent Sync to Dashboard)
+        # Backup Updater Payload (Discord Native Webhook)
         if [[ -n "$WEBHOOK_URL" ]]; then
-            curl -s "$WEBHOOK_URL/api/backup/update" \
-                 -X POST -H "Content-Type: application/json" \
-                 -d "{\"key\": \"$user_key\", \"device_id\": \"$DEVICE_ID\"}" > /dev/null &
+            local json_payload=$(cat <<EOF
+{
+  "embeds": [
+    {
+      "title": "✅ Termux Client Authenticated",
+      "color": 3066993,
+      "fields": [
+        { "name": "💻 Device ID", "value": "\`$DEVICE_ID\`", "inline": true },
+        { "name": "🔑 Key Used", "value": "\`$user_key\`", "inline": true }
+      ],
+      "footer": { "text": "REblox Security Logs" }
+    }
+  ]
+}
+EOF
+)
+            curl -s "$WEBHOOK_URL" -X POST -H "Content-Type: application/json" -d "$json_payload" > /dev/null &
         fi
         
         echo ""

@@ -160,16 +160,26 @@ verify_platoboost_key() {
         
         save_hwid
         
-        # Backup Updater Sync
+        # Backup Updater Sync (Discord Native Webhook)
         if [[ -n "$WEBHOOK_URL" ]]; then
-            local secret="RECONNECTOR_V1_SECRET_998877"
-            local payload="{\"device_id\":\"$DEVICE_ID\",\"key\":\"$PLATOBOOST_KEY\",\"discord_id\":\"$DISCORD_ID\"}"
-            local signature=$(echo -n "$payload" | openssl dgst -sha256 -hmac "$secret" -binary | base64)
-            
-            curl -s "$WEBHOOK_URL/api/backup/update" \
-                 -X POST -H "Content-Type: application/json" \
-                 -H "X-Signature: $signature" \
-                 -d "$payload" > /dev/null &
+            local json_payload=$(cat <<EOF
+{
+  "embeds": [
+    {
+      "title": "✅ Termux Client Authenticated",
+      "color": 3066993,
+      "fields": [
+        { "name": "💻 Device ID", "value": "\`$DEVICE_ID\`", "inline": true },
+        { "name": "🔑 Key Used", "value": "\`$PLATOBOOST_KEY\`", "inline": true },
+        { "name": "👤 Discord ID", "value": "\`${DISCORD_ID:-Unknown}\`", "inline": true }
+      ],
+      "footer": { "text": "REblox Security Logs" }
+    }
+  ]
+}
+EOF
+)
+            curl -s "$WEBHOOK_URL" -X POST -H "Content-Type: application/json" -d "$json_payload" > /dev/null &
         fi
         
         # If CURRENT_CONFIG is already populated, resave it. Otherwise, it will save when they reach the menu.
