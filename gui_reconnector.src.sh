@@ -208,20 +208,64 @@ update_logger() {
         if [[ $hours -gt 0 ]]; then time_str="${hours}h "; fi
         if [[ $minutes -gt 0 || $hours -gt 0 ]]; then time_str="${time_str}${minutes}m "; fi
         time_str="${time_str}${seconds}s"
+        # Safe Hardware polling (Designed for emulators like LDPlayer/MuMu/UGPhone to avoid stack corruption)
         
-        # Hardware polling
-        local mem_alloc=$(su -c "free -m" | grep Mem)
-        local mem_total=$(echo "$mem_alloc" | awk '{print $2}')
-        local mem_used=$(echo "$mem_alloc" | awk '{print $3}')
+        # CPU Polling (Manual calc from /proc/stat to avoid `top` stack corruption)
+        local cpu_v1=$(su -c "cat /proc/stat" 2>/dev/null | grep '^cpu ')
+        sleep 0.2
+        local cpu_v2=$(su -c "cat /proc/stat" 2>/dev/null | grep '^cpu ')
         
-        # CPU Polling (via top, quick snapshot)
-        local cpu_raw=$(su -c "top -n 1 -d 1" 2>/dev/null | head -n 3 | grep -i '%cpu' | awk '{print $2}')
-        if [[ -z "$cpu_raw" ]]; then cpu_raw="N/A"; fi
+        local cpu_raw="N/A"
+        if [[ -n "$cpu_v1" && -n "$cpu_v2" ]]; then
+            local u1=$(echo "$cpu_v1" | awk '{print $2}')
+            local n1=$(echo "$cpu_v1" | awk '{print $3}')
+            local s1=$(echo "$cpu_v1" | awk '{print $4}')
+            local i1=$(echo "$cpu_v1" | awk '{print $5}')
+            
+            local u2=$(echo "$cpu_v2" | awk '{print $2}')
+            local n2=$(echo "$cpu_v2" | awk '{print $3}')
+            local s2=$(echo "$cpu_v2" | awk '{print $4}')
+            local i2=$(echo "$cpu_v2" | awk '{print $5}')
+            
+            local active1=$((u1 + n1 + s1))
+            local active2=$((u2 + n2 + s2))
+            local total1=$((active1 + i1))
+            local total2=$((active2 + i2))
+            
+            local active_diff=$((active2 - active1))
+            local total_diff=$((total2 - total1))
+            
+            if [[ $total_diff -gt 0 ]]; then
+                cpu_raw=$(( (active_diff * 100) / total_diff ))
+            fi
+        fi
         
-        # Storage Polling
-        local storage_alloc=$(su -c "df -h /data" | tail -n 1)
-        local storage_total=$(echo "$storage_alloc" | awk '{print $2}')
-        local storage_used=$(echo "$storage_alloc" | awk '{print $3}')
+        # RAM Polling (Manual parsing of /proc/meminfo to avoid `free` binary crashes)
+        local mem_total_kb=$(su -c "grep MemTotal /proc/meminfo" 2>/dev/null | awk '{print $2}')
+        local mem_avail_kb=$(su -c "grep MemAvailable /proc/meminfo" 2>/dev/null | awk '{print $2}')
+        
+        local mem_total="N/A"
+        local mem_used="N/A"
+        if [[ -n "$mem_total_kb" && -n "$mem_avail_kb" ]]; then
+            mem_total=$((mem_total_kb / 1024))
+            local mem_used_kb=$((mem_total_kb - mem_avail_kb))
+            mem_used=$((mem_used_kb / 1024))
+        fi
+        
+        # Storage Polling (Basic df parsing without heavy flags)
+        local storage_alloc=$(su -c "df /data" 2>/dev/null | tail -n 1)
+        local storage_total="N/A"
+        local storage_used="N/A"
+        if [[ -n "$storage_alloc" ]]; then
+            local s_tot_kb=$(echo "$storage_alloc" | awk '{print $2}')
+            local s_used_kb=$(echo "$storage_alloc" | awk '{print $3}')
+            
+            # Convert to GB loosely for clean UI (1GB = 1048576 KB)
+            if [[ "$s_tot_kb" =~ ^[0-9]+$ && "$s_used_kb" =~ ^[0-9]+$ ]]; then
+                storage_total=$(awk "BEGIN {printf \"%.1f\", $s_tot_kb/1048576}")
+                storage_used=$(awk "BEGIN {printf \"%.1f\", $s_used_kb/1048576}")
+            fi
+        fi
         
         # Device details
         local dev_model=$(getprop ro.product.model 2>/dev/null || echo "Unknown Device")
